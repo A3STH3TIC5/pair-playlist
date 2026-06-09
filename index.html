@@ -277,8 +277,19 @@ footer span { color: var(--accent-dim); }
           class="btn btn-primary"
           onclick="openPlayerMode()"
       >
-      🎵 플레이어
-      </button>
+      <button
+  class="btn btn-ghost"
+  onclick="openAlbumList()"
+>
+  📚 내 앨범
+</button>
+
+<button
+  class="btn btn-primary"
+  onclick="openPlayerMode()"
+>
+  🎵 플레이어
+</button>
       <div class="share-url-wrap">
         <span class="share-url" id="shareUrl"></span>
         <button class="copy-btn" onclick="copyShareUrl()">복사</button>
@@ -945,6 +956,53 @@ function playTrackFromPlayer(index){
 
     `;
 }
+async function openAlbumList(){
+
+  const { data } = await sb
+    .from('albums')
+    .select('id,title,created_at')
+    .eq('owner_id', currentUser.id)
+    .order('created_at', {
+      ascending:false
+    });
+
+  const list =
+    document.getElementById('albumList');
+
+  list.innerHTML = '';
+
+  data.forEach(album => {
+
+    list.innerHTML += `
+      <div
+        class="album-row"
+        onclick="
+          location.href=
+          '${location.pathname}?album=${album.id}'
+        "
+      >
+        📀 ${album.title}
+      </div>
+    `;
+  });
+
+  document
+    .getElementById('albumModal')
+    .style.display='flex';
+}
 </script>
+<div id="albumModal" class="modal">
+
+  <div class="modal-card">
+
+    <div class="modal-title">
+      내 플레이리스트
+    </div>
+
+    <div id="albumList"></div>
+
+  </div>
+
+</div>
 </body>
 </html>
