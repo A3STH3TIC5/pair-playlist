@@ -568,10 +568,13 @@ async function signOut() {
 }
 
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (session?.user) {
-    currentUser = session.user;
-    showApp();
-  }
+  // TOKEN_REFRESHED: 탭 복귀 시 Supabase가 세션을 갱신하며 재발화 → 무시
+  // SIGNED_IN 최초 1회 / 이미 초기화됐으면 어떤 이벤트든 차단
+  if (!session?.user) return;
+  if (event === 'TOKEN_REFRESHED') return;
+  if (currentUser) return;
+  currentUser = session.user;
+  showApp();
 });
 
 function showMyInviteCode(){
