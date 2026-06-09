@@ -392,7 +392,7 @@ footer span { color: var(--accent-dim); }
         </div>
       </div>
       <div class="album-info">
-        <div><label>앨범 제목</label><input type="text" id="albumTitle" placeholder="우리의 봄" maxlength="40"></div>
+        <div><label>앨범 제목</label><input type="text" id="albumTitle"  placeholder="우리의 봄" maxlength="40"></div>
         <div><label>아티스트 / 페어 이름</label><input type="text" id="albumArtist" placeholder="민지 & 지수" maxlength="40"></div>
         <div><label>연도</label><input type="text" id="albumYear" placeholder="2025" maxlength="10"></div>
         <div><label>한 줄 소개</label><textarea id="albumDesc" placeholder="우리가 함께한 계절의 사운드트랙" style="height:70px;resize:none;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;padding:10px 14px;color:var(--text-main);font-family:'Noto Serif KR',serif;font-size:13px;width:100%;"></textarea></div>
@@ -768,12 +768,23 @@ function resetCover() {
 
   saveAlbumToDB();
 }
-function saveAlbumInfo() {
-  albumData.title = document.getElementById('albumTitle').value.trim();
-  albumData.artist = document.getElementById('albumArtist').value.trim();
-  albumData.year = document.getElementById('albumYear').value.trim();
-  albumData.desc = document.getElementById('albumDesc').value.trim();
-  saveAlbumToDB(); updatePreviewCard();
+async function saveAlbumInfo() {
+
+  albumData.title =
+    document.getElementById('albumTitle').value.trim();
+
+  albumData.artist =
+    document.getElementById('albumArtist').value.trim();
+
+  albumData.year =
+    document.getElementById('albumYear').value.trim();
+
+  albumData.desc =
+    document.getElementById('albumDesc').value.trim();
+
+  await saveAlbumToDB();
+
+  updatePreviewCard();
 }
 function updatePreviewCard() {
   if (albumData.coverUrl) { document.getElementById('previewImg').src = albumData.coverUrl; document.getElementById('albumCardPreview').classList.add('visible'); }
@@ -1086,11 +1097,6 @@ async function openAlbumList(){
     document.getElementById('albumList');
 
   list.innerHTML = '';
-
-  localStorage.setItem(
-  'albumCache',
-  JSON.stringify(data)
-);
   
   data.forEach(album => {
 
