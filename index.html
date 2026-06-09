@@ -555,7 +555,11 @@ async function loadFromSupabase() {
   let targetId = sharedAlbumId || null;
 
   if (!targetId) {
-    const { data } = await sb.from('albums').select('*').eq('owner_id', currentUser.id).order('created_at', { ascending: false }).limit(1);
+    const { data } = await sb.from('albums').select('*').or(
+  `owner_id.eq.${currentUser.id},
+   partner_id.eq.${currentUser.id}`
+)
+      .order('created_at', { ascending: false }).limit(1);
     if (data && data.length > 0) {
       targetId = data[0].id;
     } else {
@@ -1319,13 +1323,15 @@ if(cached.length){
 }
   
   const { data } = await sb
-    .from('albums')
-    .select('id,title,created_at')
-    .eq('owner_id', currentUser.id)
-    .order('created_at', {
-      ascending:false
-    });
-
+  .from('albums')
+  .select('id,title,created_at,owner_id,partner_id')
+  .or(
+    `owner_id.eq.${currentUser.id},partner_id.eq.${currentUser.id}`
+  )
+  .order('created_at', {
+    ascending:false
+  });
+  
   const list =
     document.getElementById('albumList');
 
