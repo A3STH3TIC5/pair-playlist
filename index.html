@@ -346,13 +346,6 @@ footer span { color: var(--accent-dim); }
     🎵 플레이어
   </button>
  
-  <button
-  class="btn btn-primary"
-  onclick="renameCurrentAlbum()"
->
-  ✏ 이름 변경
-</button>
- 
 </div>
     <!-- 공유 URL -->
     <div class="share-bar" id="shareBar" style="display:none">
@@ -673,6 +666,7 @@ async function deleteAlbum(id){
 
   document.getElementById('albumTitle').value =
     title;
+    
 
   updatePreviewCard();
 
