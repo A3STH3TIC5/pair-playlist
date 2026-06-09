@@ -130,9 +130,21 @@ section { padding: 48px 0; }
 .album-card-preview.visible { display: block; }
 .album-card-preview .cover-img { width: 100%; aspect-ratio: 1; object-fit: cover; filter: brightness(0.85); }
 .card-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(10,8,18,0.95) 0%, transparent 100%); padding: 20px 18px 18px; }
-.card-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--cream); line-height: 1.2; }
-.card-sub { font-size: 11px; color: var(--accent); margin-top: 4px; letter-spacing: 0.1em; }
-
+.card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0,0,0,.7);
+  line-height: 1.2;
+}
+ .card-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,.9);
+  text-shadow: 0 2px 8px rgba(0,0,0,.7);
+  margin-top: 4px;
+  letter-spacing: 0.1em;
+}
 /* ── 스티커 ── */
 #stickerLayer { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
 .sticker-item { position: absolute; cursor: grab; pointer-events: all; user-select: none; touch-action: none; }
@@ -203,6 +215,41 @@ section { padding: 48px 0; }
 .np-sub { font-size: 11px; color: var(--accent); }
 footer { text-align: center; padding: 32px 0 80px; font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; border-top: 1px solid var(--glass-border); }
 footer span { color: var(--accent-dim); }
+.modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  z-index:999;
+  align-items:center;
+  justify-content:center;
+}
+
+.modal-card{
+  width:min(500px,90vw);
+  max-height:70vh;
+  overflow:auto;
+  background:var(--card);
+  border:1px solid var(--glass-border);
+  border-radius:16px;
+  padding:20px;
+}
+
+.modal-title{
+  font-size:20px;
+  margin-bottom:16px;
+  font-family:'Playfair Display',serif;
+}
+
+.album-row{
+  padding:12px;
+  border-bottom:1px solid var(--glass-border);
+  cursor:pointer;
+}
+
+.album-row:hover{
+  background:var(--glass);
+}
 </style>
 </head>
 <body>
@@ -273,11 +320,8 @@ footer span { color: var(--accent-dim); }
 >
   ＋ 새 앨범
 </button>
-      <button
-          class="btn btn-primary"
-          onclick="openPlayerMode()"
-      >
-      <button
+
+<button
   class="btn btn-ghost"
   onclick="openAlbumList()"
 >
