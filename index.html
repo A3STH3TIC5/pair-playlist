@@ -268,6 +268,12 @@ footer span { color: var(--accent-dim); }
     <!-- 공유 URL -->
     <div class="share-bar" id="shareBar" style="display:none">
       <button
+  class="btn btn-primary"
+  onclick="createNewAlbum()"
+>
+  ＋ 새 앨범
+</button>
+      <button
           class="btn btn-primary"
           onclick="openPlayerMode()"
       >
@@ -519,6 +525,26 @@ function openPlayerMode() {
   location.href =
     `${location.pathname}?album=${albumId}&view=player`;
 }
+async function createNewAlbum() {
+
+  const { data, error } = await sb
+    .from('albums')
+    .insert({
+      owner_id: currentUser.id,
+      title: '새 플레이리스트',
+      partner_id: null
+    })
+    .select()
+    .single();
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  location.href =
+    `${location.pathname}?album=${data.id}`;
+}
     
 
 async function showInviteModal() {
@@ -587,23 +613,33 @@ document.getElementById('coverUpload').addEventListener('change', function(e) {
   const file = e.target.files[0]; if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    albumData.coverUrl = ev.target.result;
-    document.getElementById('coverImg').src = ev.target.result;
-    document.getElementById('coverImg').style.display = 'block';
-    document.getElementById('uploadHint').style.display = 'none';
-    document.getElementById('lpDisc').classList.add('playing');
-    document.getElementById('resetCoverBtn').style.display = 'inline-flex';
-    updatePreviewCard();
-  };
+  albumData.coverUrl = ev.target.result;
+
+  document.getElementById('coverImg').src = ev.target.result;
+  document.getElementById('coverImg').style.display = 'block';
+
+  document.getElementById('uploadHint').style.display = 'none';
+
+  document.getElementById('lpDisc').classList.add('playing');
+
+  document.getElementById('resetCoverBtn').style.display = 'inline-flex';
+
+  updatePreviewCard();
+
+  saveAlbumToDB();
+};
   reader.readAsDataURL(file);
 });
 function resetCover() {
   albumData.coverUrl = '';
-  document.getElementById('coverImg').src = ''; document.getElementById('coverImg').style.display = 'none';
+  document.getElementById('coverImg').src = '';
+  document.getElementById('coverImg').style.display = 'none';
   document.getElementById('uploadHint').style.display = 'flex';
   document.getElementById('lpDisc').classList.remove('playing');
   document.getElementById('resetCoverBtn').style.display = 'none';
   document.getElementById('albumCardPreview').classList.remove('visible');
+
+  saveAlbumToDB();
 }
 function saveAlbumInfo() {
   albumData.title = document.getElementById('albumTitle').value.trim();
