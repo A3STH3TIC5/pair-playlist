@@ -1097,8 +1097,19 @@ function renderPlayerMode() {
 }
 function onPlayerStateChange(event){
 
+  console.log(
+    'YT STATE:',
+    event.data,
+    'TRACK:',
+    currentTrackIndex,
+    'REPEAT:',
+    repeatAll
+  );
+
   if(event.data !== YT.PlayerState.ENDED)
     return;
+
+  console.log('TRACK ENDED');
 
   if(currentTrackIndex < tracks.length - 1){
 
@@ -1107,6 +1118,8 @@ function onPlayerStateChange(event){
     );
 
   }else if(repeatAll){
+
+    console.log('REPEAT FROM START');
 
     playTrackFromPlayer(0);
 
@@ -1180,8 +1193,8 @@ function playTrackFromPlayer(index){
             id="repeatBtn"
             onclick="toggleRepeat()"
           >
-            🔁 전체반복 ON
-          </button>
+  ${repeatAll ? '🔁 전체반복 ON' : '🔁 전체반복 OFF'}
+</button>
 
           <button
             class="btn btn-ghost"
