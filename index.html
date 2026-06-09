@@ -888,14 +888,72 @@ async function reloadTracks() {
 // ════════════════════════════════════════════════════════
 // 스티커
 // ════════════════════════════════════════════════════════
-document.getElementById('stickerUpload').addEventListener('change', function(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async ev => {
-    const { data } = await sb.from('stickers').insert({ album_id: albumId, src: ev.target.result, x: window.innerWidth/2-50, y: window.innerHeight/2-50, w: 100 }).select().single();
-    if (data) { stickers.push({ id:data.id, src:data.src, x:data.x, y:data.y, w:data.w }); renderSticker(stickers[stickers.length-1]); }
-  };
-  reader.readAsDataURL(file); this.value = '';
+document.getElementById('stickerUpload')
+.addEventListener('change', async function(e){
+
+  const file = e.target.files[0];
+
+  if(!file) return;
+
+  const ext =
+    file.name.split('.').pop();
+
+  const fileName =
+    `${Date.now()}.${ext}`;
+
+  const filePath =
+    `${albumId}/${fileName}`;
+
+  const { error } =
+    await sb.storage
+      .from('album-stickers')
+      .upload(filePath, file, {
+        upsert:true
+      });
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  const { data:urlData } =
+    sb.storage
+      .from('album-stickers')
+      .getPublicUrl(filePath);
+
+  const publicUrl =
+    urlData.publicUrl;
+
+  const { data } =
+    await sb
+      .from('stickers')
+      .insert({
+        album_id: albumId,
+        src: publicUrl,
+        x: window.innerWidth/2-50,
+        y: window.innerHeight/2-50,
+        w: 100
+      })
+      .select()
+      .single();
+
+  if(data){
+
+    stickers.push({
+      id:data.id,
+      src:data.src,
+      x:data.x,
+      y:data.y,
+      w:data.w
+    });
+
+    renderSticker(
+      stickers[stickers.length-1]
+    );
+  }
+
+  this.value = '';
+
 });
 function renderSticker(s) {
   const el = document.createElement('div'); el.className = 'sticker-item'; el.id = 'sticker_'+s.id;
