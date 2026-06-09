@@ -15,6 +15,19 @@
   --text-main: #EDE9E4; --text-dim: #8B8599;
   --bg-grad1: rgba(197,184,245,0.12); --bg-grad2: rgba(232,165,152,0.09);
 }
+  body.light-mode {
+  --navy: #FAF8F4;
+  --deep: #FFFFFF;
+  --card: #FFFFFF;
+
+  --cream: #222222;
+
+  --text-main: #222222;
+  --text-dim: #666666;
+
+  --glass: rgba(0,0,0,0.04);
+  --glass-border: rgba(0,0,0,0.08);
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--navy); color: var(--text-main); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; overflow-x: hidden; }
 body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 60% 50% at 20% 10%, var(--bg-grad1) 0%, transparent 70%), radial-gradient(ellipse 40% 40% at 80% 80%, var(--bg-grad2) 0%, transparent 60%); pointer-events: none; z-index: 0; }
@@ -266,6 +279,9 @@ footer span { color: var(--accent-dim); }
       <div class="theme-dot" style="background:#F0C97A" data-accent="#F0C97A" data-accent-dim="#C8A040" data-accent2="#98B8F0" data-bg1="rgba(240,201,122,0.12)" data-bg2="rgba(152,184,240,0.09)" onclick="applyTheme(this)" title="Gold"></div>
       <div class="theme-dot" style="background:#A8D8A8" data-accent="#A8D8A8" data-accent-dim="#78B878" data-accent2="#F4A7B9" data-bg1="rgba(168,216,168,0.12)" data-bg2="rgba(244,167,185,0.09)" onclick="applyTheme(this)" title="Green"></div>
       <input type="color" id="customColorPicker" value="#C5B8F5" oninput="applyCustomColor(this.value)" title="커스텀 색상">
+      <button class="btn btn-ghost" onclick="toggleMode()">
+☀️ / 🌙
+</button>
     </div>
   </header>
 
@@ -337,7 +353,23 @@ footer span { color: var(--accent-dim); }
 
 </div><!-- /appRoot -->
 
-<script>
+function toggleMode() {
+  document.body.classList.toggle('light-mode');
+
+  localStorage.setItem(
+    'themeMode',
+    document.body.classList.contains('light-mode')
+      ? 'light'
+      : 'dark'
+  );
+}
+
+window.addEventListener('load', () => {
+  if(localStorage.getItem('themeMode') === 'light'){
+    document.body.classList.add('light-mode');
+  }
+});
+  <script>
 // ════════════════════════════════════════════════════════
 // ⚠️  아래 두 줄을 본인의 Supabase 프로젝트 값으로 교체하세요
 // ════════════════════════════════════════════════════════
