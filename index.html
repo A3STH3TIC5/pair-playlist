@@ -910,6 +910,9 @@ function resetCover() {
 }
 function saveAlbumInfo() {
 
+  pageTitle = albumData.title || pageTitle;
+document.getElementById('titleEm').textContent = pageTitle;
+  
   albumData.title =
     document.getElementById('albumTitle').value.trim();
 
@@ -970,6 +973,36 @@ async function addMemo(trackId) {
   document.getElementById('panel_' + trackId).classList.add('open');
   document.getElementById('item_' + trackId).classList.add('active');
 }
+async function editMemo(memoId, oldText){
+
+  const text = prompt(
+    '메모 수정',
+    oldText
+  );
+
+  if(text === null) return;
+
+  await sb
+    .from('memos')
+    .update({
+      text:text.trim()
+    })
+    .eq('id', memoId);
+
+  await reloadTracks();
+}
+async function deleteMemo(memoId){
+
+  if(!confirm('메모를 삭제할까요?'))
+    return;
+
+  await sb
+    .from('memos')
+    .delete()
+    .eq('id', memoId);
+
+  await reloadTracks();
+}
 async function reloadTracks() {
   const { data } = await sb.from('tracks').select('*, memos(*)').eq('album_id', albumId).order('position', { ascending: true });
   tracks = (data || []).map(t => ({ id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id, memos: (t.memos||[]).map(m => ({ id:m.id, text:m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}) })) }));
@@ -1029,7 +1062,50 @@ function renderTrackList() {
   tracks.forEach(t => {
     const c = document.getElementById('memoList_'+t.id); if (!c) return;
     if (t.memos.length===0) { c.innerHTML='<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">아직 메모가 없어요 :)</div>'; return; }
-    c.innerHTML = t.memos.map(m=>`<div class="memo-item">${escHtml(m.text)}<div class="memo-meta">${m.time}</div></div>`).join('');
+    c.innerHTML = t.memos.map(m=>`<div class="memo-item">
+
+  <div>
+    ${escHtml(m.text)}
+  </div>
+
+  <div
+    class="memo-meta"
+    style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    "
+  >
+
+    <span>${m.time}</span>
+
+    <span>
+
+      <button
+        onclick="
+          editMemo(
+            '${m.id}',
+            ${JSON.stringify(m.text)}
+          )
+        "
+      >
+        ✏️
+      </button>
+
+      <button
+        onclick="
+          deleteMemo('${m.id}')
+        "
+      >
+        🗑
+      </button>
+
+    </span>
+
+  </div>
+
+</div>`).join('');
   });
 }
 
