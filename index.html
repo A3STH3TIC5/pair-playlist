@@ -682,7 +682,18 @@ async function showInviteModal() {
   await sb.from('albums').update({ partner_id: user.id }).eq('id', albumId);
   alert(`${email}을 파트너로 초대했어요! 🎵`);
 }
+let saveTimer = null;
+function queueSave(){
 
+  clearTimeout(saveTimer);
+
+  saveTimer = setTimeout(async () => {
+
+    await saveAlbumToDB();
+
+  }, 1000);
+
+}
 async function saveAlbumToDB() {
   if (!albumId) return;
   await sb.from('albums').update({
@@ -768,7 +779,7 @@ function resetCover() {
 
   saveAlbumToDB();
 }
-async function saveAlbumInfo() {
+function saveAlbumInfo() {
 
   albumData.title =
     document.getElementById('albumTitle').value.trim();
@@ -782,7 +793,7 @@ async function saveAlbumInfo() {
   albumData.desc =
     document.getElementById('albumDesc').value.trim();
 
-  await saveAlbumToDB();
+  queueSave();
 
   updatePreviewCard();
 }
