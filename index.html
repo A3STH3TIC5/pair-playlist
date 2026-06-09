@@ -145,19 +145,6 @@ section { padding: 48px 0; }
   margin-top: 4px;
   letter-spacing: 0.1em;
 }
-/* ── 스티커 ── */
-#stickerLayer { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
-.sticker-item { position: absolute; cursor: grab; pointer-events: all; user-select: none; touch-action: none; }
-.sticker-item:active { cursor: grabbing; }
-.sticker-item img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
-.sticker-del { position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent2); color: #1a0a0a; font-size: 11px; font-weight: 700; border: none; cursor: pointer; display: none; align-items: center; justify-content: center; z-index: 2; }
-.sticker-item:hover .sticker-del { display: flex; }
-.sticker-resize { position: absolute; bottom: -6px; right: -6px; width: 16px; height: 16px; background: var(--accent); border-radius: 3px; cursor: se-resize; display: none; }
-.sticker-item:hover .sticker-resize { display: flex; align-items: center; justify-content: center; }
-.sticker-toolbar { position: fixed; bottom: 80px; right: 20px; z-index: 60; }
-.sticker-fab { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: #1a1428; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(197,184,245,0.4); font-size: 20px; transition: transform 0.2s; }
-.sticker-fab:hover { transform: scale(1.1); }
-#stickerUpload { display: none; }
 
 /* ── 버튼 ── */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; font-size: 13px; transition: all 0.2s; }
@@ -302,13 +289,6 @@ footer span { color: var(--accent-dim); }
     <span class="user-email" id="userEmail"></span>
     <button class="btn-sm" onclick="signOut()">로그아웃</button>
   </div>
-</div>
-
-<!-- 스티커 레이어 -->
-<div id="stickerLayer"></div>
-<div class="sticker-toolbar">
-  <button class="sticker-fab" title="스티커 추가" onclick="document.getElementById('stickerUpload').click()">🩹</button>
-  <input type="file" id="stickerUpload" accept="image/*">
 </div>
 
 <div class="container">
@@ -470,7 +450,6 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 let currentUser  = null;
 let albumId      = null;
 let tracks       = [];
-let stickers     = [];
 let albumData    = {};
 let pageTitle    = 'Playlist';
 let currentTheme = { accent:'#C5B8F5', accentDim:'#9B8ED4', accent2:'#E8A598', bg1:'rgba(197,184,245,0.12)', bg2:'rgba(232,165,152,0.09)' };
@@ -573,10 +552,6 @@ async function loadFromSupabase() {
   // 트랙
   const { data: trackData } = await sb.from('tracks').select('*, memos(*)').eq('album_id', albumId).order('position', { ascending: true });
   tracks = (trackData || []).map(t => ({ id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id, memos: (t.memos || []).map(m => ({ id: m.id, text: m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR', { month:'short', day:'numeric' }) })) }));
-
-  // 스티커
-  const { data: stickerData } = await sb.from('stickers').select('*').eq('album_id', albumId);
-  stickers = (stickerData || []).map(s => ({ id: s.id, src: s.src, x: s.x, y: s.y, w: s.w }));
 
   applyThemeVars(currentTheme);
   renderAll();
@@ -886,110 +861,6 @@ async function reloadTracks() {
 }
 
 // ════════════════════════════════════════════════════════
-// 스티커
-// ════════════════════════════════════════════════════════
-document.getElementById('stickerUpload')
-.addEventListener('change', async function(e){
-
-  const file = e.target.files[0];
-
-  if(!file) return;
-
-  const ext =
-    file.name.split('.').pop();
-
-  const fileName =
-    `${Date.now()}.${ext}`;
-
-  const filePath =
-    `${albumId}/${fileName}`;
-
-  const { error } =
-    await sb.storage
-      .from('album-stickers')
-      .upload(filePath, file, {
-        upsert:true
-      });
-
-  if(error){
-    alert(error.message);
-    return;
-  }
-
-  const { data:urlData } =
-    sb.storage
-      .from('album-stickers')
-      .getPublicUrl(filePath);
-
-  const publicUrl =
-    urlData.publicUrl;
-
-  const { data } =
-    await sb
-      .from('stickers')
-      .insert({
-        album_id: albumId,
-        src: publicUrl,
-        x: window.innerWidth/2-50,
-        y: window.innerHeight/2-50,
-        w: 100
-      })
-      .select()
-      .single();
-
-  if(data){
-
-    stickers.push({
-      id:data.id,
-      src:data.src,
-      x:data.x,
-      y:data.y,
-      w:data.w
-    });
-
-    renderSticker(
-      stickers[stickers.length-1]
-    );
-  }
-
-  this.value = '';
-
-});
-function renderSticker(s) {
-  const el = document.createElement('div'); el.className = 'sticker-item'; el.id = 'sticker_'+s.id;
-  el.style.cssText = `left:${s.x}px;top:${s.y}px;width:${s.w}px;height:${s.w}px;`;
-  el.innerHTML = `<img src="${s.src}" alt="sticker" draggable="false"><button class="sticker-del" onclick="deleteSticker('${s.id}')">✕</button><div class="sticker-resize" id="resize_${s.id}"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 10L10 0v10H0z" opacity="0.5"/></svg></div>`;
-  makeDraggable(el, s); makeResizable(el.querySelector('.sticker-resize'), el, s);
-  document.getElementById('stickerLayer').appendChild(el);
-}
-function renderAllStickers() { document.getElementById('stickerLayer').innerHTML = ''; stickers.forEach(s => renderSticker(s)); }
-async function deleteSticker(id) {
-  await sb.from('stickers').delete().eq('id', id);
-  stickers = stickers.filter(s=>s.id!==id);
-  const el = document.getElementById('sticker_'+id); if (el) el.remove();
-}
-function makeDraggable(el, s) {
-  let sx,sy,sl,st;
-  el.addEventListener('mousedown', e => {
-    if (e.target.classList.contains('sticker-del')||e.target.closest('.sticker-resize')) return;
-    e.preventDefault(); sx=e.clientX;sy=e.clientY;sl=parseInt(el.style.left);st=parseInt(el.style.top);
-    const mm=e2=>{el.style.left=(sl+e2.clientX-sx)+'px';el.style.top=(st+e2.clientY-sy)+'px';s.x=sl+e2.clientX-sx;s.y=st+e2.clientY-sy;};
-    const mu=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);sb.from('stickers').update({x:s.x,y:s.y}).eq('id',s.id);};
-    document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
-  });
-}
-function makeResizable(handle, el, s) {
-  if (!handle) return;
-  let sx,sw;
-  handle.addEventListener('mousedown', e => {
-    e.stopPropagation(); e.preventDefault(); sx=e.clientX; sw=parseInt(el.style.width);
-    const mm=e2=>{const w=Math.max(40,sw+(e2.clientX-sx));el.style.width=w+'px';el.style.height=w+'px';s.w=w;};
-    const mu=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);sb.from('stickers').update({w:s.w}).eq('id',s.id);};
-    document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
-  });
-}
-
-// ════════════════════════════════════════════════════════
 // 재생
 // ════════════════════════════════════════════════════════
 function togglePanel(trackId) {
@@ -1047,7 +918,7 @@ function renderTrackList() {
 }
 
 function renderAll() {
-  renderTrackList(); renderAllStickers();
+  renderTrackList(); 
   if (albumData.title) document.getElementById('albumTitle').value = albumData.title;
   if (albumData.artist) document.getElementById('albumArtist').value = albumData.artist;
   if (albumData.year) document.getElementById('albumYear').value = albumData.year;
