@@ -1080,23 +1080,6 @@ function playTrackFromPlayer(index){
 }
 async function openAlbumList(){
 
-  const cached =
-    localStorage.getItem('albumCache');
-
-  if(cached){
-
-    const data =
-      JSON.parse(cached);
-
-    renderAlbumList(data);
-
-    document
-      .getElementById('albumModal')
-      .style.display='flex';
-
-    return;
-  }
-
   const { data } = await sb
     .from('albums')
     .select('id,title,created_at')
