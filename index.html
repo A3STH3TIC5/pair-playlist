@@ -202,6 +202,33 @@ section { padding: 48px 0; }
 .np-sub { font-size: 11px; color: var(--accent); }
 footer { text-align: center; padding: 32px 0 80px; font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; border-top: 1px solid var(--glass-border); }
 footer span { color: var(--accent-dim); }
+.player-track{
+
+  display:flex;
+  gap:14px;
+  align-items:center;
+
+  padding:14px;
+
+  border-bottom:1px solid var(--glass-border);
+
+  cursor:pointer;
+
+  transition:.2s;
+}
+
+.player-track:hover{
+  background:var(--glass);
+}
+
+.player-track.active{
+
+  background:var(--glass);
+
+  color:var(--accent);
+
+  border-left:3px solid var(--accent);
+}
 .modal{
   display:none;
   position:fixed;
@@ -952,116 +979,200 @@ window.addEventListener('load', () => {
     document.body.classList.add('light-mode');
   }
 });
+let currentTrackIndex = 0;
+
 function renderPlayerMode() {
 
-  const player = document.getElementById('playerModeView');
+  const player =
+    document.getElementById('playerModeView');
 
-  player.style.display = 'block';
+  const trackListHtml =
+    tracks.map((t,i)=>`
 
-  player.innerHTML = `
+      <div
+        class="player-track ${i===currentTrackIndex ? 'active' : ''}"
+        onclick="playTrackFromPlayer(${i})"
+      >
+        <span>
+          ${String(i+1).padStart(2,'0')}
+        </span>
+
+        <div style="flex:1">
+          <div>${t.title}</div>
+
+          <div style="
+            font-size:12px;
+            color:var(--text-dim);
+            margin-top:2px;
+          ">
+            ${t.artist || ''}
+          </div>
+        </div>
+
+      </div>
+
+    `).join('');
+
+  player.style.display='block';
+
+  player.innerHTML=`
 
     <section>
 
       <div style="
-        text-align:center;
-        max-width:700px;
+        max-width:1000px;
         margin:auto;
       ">
 
-        <img
-          src="${albumData.coverUrl || ''}"
-          style="
-            width:320px;
-            height:320px;
-            border-radius:50%;
-            object-fit:cover;
-            margin-bottom:20px;
-          "
-        >
-
-        <h2 style="
-          font-family:'Playfair Display',serif;
-          font-size:36px;
-          margin-bottom:10px;
+        <div style="
+          display:grid;
+          grid-template-columns:320px 1fr;
+          gap:40px;
         ">
-          ${albumData.title || 'Playlist'}
-        </h2>
 
-        <p style="margin-bottom:30px">
-          ${albumData.artist || ''}
-        </p>
+          <div>
 
-        <button
-          class="btn btn-primary"
-          onclick="playTrackFromPlayer(0)"
-        >
-          ▶ PLAY
-        </button>
+            <img
+              src="${albumData.coverUrl || ''}"
+              style="
+                width:100%;
+                aspect-ratio:1;
+                border-radius:18px;
+                object-fit:cover;
+              "
+            >
+
+            <h2 style="
+              margin-top:20px;
+              font-family:'Playfair Display',serif;
+              font-size:36px;
+            ">
+              ${albumData.title || 'Playlist'}
+            </h2>
+
+            <p style="
+              margin-top:8px;
+              color:var(--accent);
+            ">
+              ${albumData.artist || ''}
+            </p>
+
+            <p style="
+              margin-top:18px;
+              color:var(--text-dim);
+              line-height:1.8;
+            ">
+              ${albumData.desc || ''}
+            </p>
+
+          </div>
+
+          <div>
+
+            <div id="playerTrackList">
+
+              ${trackListHtml}
+
+            </div>
+
+            <div id="playerArea"
+                 style="margin-top:24px;">
+            </div>
+
+          </div>
+
+        </div>
 
       </div>
 
     </section>
 
   `;
+
+  if(tracks.length){
+    playTrackFromPlayer(currentTrackIndex);
+  }
 }
 function playTrackFromPlayer(index){
 
-  if(!tracks[index]) return;
+  if(index < 0) return;
+  if(index >= tracks.length) return;
+
+  currentTrackIndex = index;
 
   const track = tracks[index];
 
-  document.getElementById('playerModeView')
+  document.getElementById('playerArea')
     .innerHTML = `
 
-      <section>
+      <div>
+
+        <h2 style="margin-bottom:8px">
+          ${track.title}
+        </h2>
+
+        <p style="
+          color:var(--text-dim);
+          margin-bottom:16px;
+        ">
+          ${track.artist || ''}
+        </p>
+
+        <iframe
+          width="100%"
+          height="500"
+          src="https://www.youtube.com/embed/${track.ytId}?autoplay=1"
+          allow="autoplay"
+          allowfullscreen
+          style="
+            border:none;
+            border-radius:12px;
+          "
+        ></iframe>
 
         <div style="
-          max-width:900px;
-          margin:auto;
+          display:flex;
+          justify-content:center;
+          gap:10px;
+          margin-top:16px;
         ">
 
-          <h2>${track.title}</h2>
+          <button
+            class="btn btn-ghost"
+            onclick="playTrackFromPlayer(${index-1})"
+          >
+            ◀ 이전곡
+          </button>
 
-          <p>${track.artist}</p>
-
-          <iframe
-            width="100%"
-            height="500"
-            src="https://www.youtube.com/embed/${track.ytId}?autoplay=1"
-            allow="autoplay"
-            allowfullscreen
-          ></iframe>
-
-          <div style="
-            margin-top:20px;
-            display:flex;
-            gap:10px;
-            justify-content:center;
-          ">
-
-            <button
-              class="btn btn-ghost"
-              onclick="playTrackFromPlayer(${index-1})"
-            >
-              이전곡
-            </button>
-
-            <button
-              class="btn btn-ghost"
-              onclick="playTrackFromPlayer(${index+1})"
-            >
-              다음곡
-            </button>
-
-          </div>
+          <button
+            class="btn btn-ghost"
+            onclick="playTrackFromPlayer(${index+1})"
+          >
+            다음곡 ▶
+          </button>
 
         </div>
 
-      </section>
+      </div>
 
     `;
-}
 
+  renderPlayerModeTrackState();
+}
+function renderPlayerModeTrackState(){
+
+  document
+    .querySelectorAll('.player-track')
+    .forEach((el,i)=>{
+
+      el.classList.toggle(
+        'active',
+        i===currentTrackIndex
+      );
+
+    });
+
+}
 function renderAlbumList(data){
 
   const list =
