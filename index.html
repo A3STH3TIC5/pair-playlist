@@ -973,11 +973,18 @@ async function addMemo(trackId) {
   document.getElementById('panel_' + trackId).classList.add('open');
   document.getElementById('item_' + trackId).classList.add('active');
 }
-async function editMemo(memoId, oldText){
+async function editMemo(memoId){
+
+  const memo =
+    tracks
+      .flatMap(t => t.memos)
+      .find(m => m.id === memoId);
+
+  if(!memo) return;
 
   const text = prompt(
     '메모 수정',
-    oldText
+    memo.text
   );
 
   if(text === null) return;
@@ -1083,13 +1090,8 @@ function renderTrackList() {
     <span>
 
       <button
-        onclick="
-          editMemo(
-            '${m.id}',
-            ${JSON.stringify(m.text)}
-          )
-        "
-      >
+  onclick="editMemo('${m.id}')"
+>
         ✏️
       </button>
 
