@@ -747,26 +747,64 @@ function complementColor(hex) { let r=parseInt(hex.slice(1,3),16),g=parseInt(hex
 // ════════════════════════════════════════════════════════
 // 앨범 커버
 // ════════════════════════════════════════════════════════
-document.getElementById('coverUpload').addEventListener('change', function(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-  albumData.coverUrl = ev.target.result;
+document.getElementById('coverUpload')
+.addEventListener('change', async function(e){
 
-  document.getElementById('coverImg').src = ev.target.result;
-  document.getElementById('coverImg').style.display = 'block';
+  const file = e.target.files[0];
 
-  document.getElementById('uploadHint').style.display = 'none';
+  if(!file) return;
 
-  document.getElementById('lpDisc').classList.add('playing');
+  const ext =
+    file.name.split('.').pop();
 
-  document.getElementById('resetCoverBtn').style.display = 'inline-flex';
+  const fileName =
+    `${Date.now()}.${ext}`;
+
+  const filePath =
+    `covers/${albumId}/${fileName}`;
+
+  const { error } =
+    await sb.storage
+      .from('album-covers')
+      .upload(filePath, file, {
+        upsert: true
+      });
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  const { data } =
+    sb.storage
+      .from('album-covers')
+      .getPublicUrl(filePath);
+
+  const publicUrl =
+    data.publicUrl;
+
+  albumData.coverUrl =
+    publicUrl;
+
+  document.getElementById('coverImg').src =
+    publicUrl;
+
+  document.getElementById('coverImg').style.display =
+    'block';
+
+  document.getElementById('uploadHint').style.display =
+    'none';
+
+  document.getElementById('lpDisc')
+    .classList.add('playing');
+
+  document.getElementById('resetCoverBtn')
+    .style.display = 'inline-flex';
 
   updatePreviewCard();
 
-  saveAlbumToDB();
-};
-  reader.readAsDataURL(file);
+  await saveAlbumToDB();
+
 });
 function resetCover() {
   albumData.coverUrl = '';
