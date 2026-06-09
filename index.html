@@ -362,8 +362,14 @@ footer span { color: var(--accent-dim); }
       </div>
       <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px" onclick="showInviteModal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H4zM8 20h8M12 16v4"/></svg>
-        파트너 초대
+        초대코드
       </button>
+      <button
+  class="btn btn-ghost"
+  onclick="showMyInviteCode()"
+>
+  🎟 초대코드
+</button>
     </div>
 
     <!-- 테마 -->
@@ -481,6 +487,7 @@ let albumData    = {};
 let pageTitle    = 'Playlist';
 let currentTheme = { accent:'#C5B8F5', accentDim:'#9B8ED4', accent2:'#E8A598', bg1:'rgba(197,184,245,0.12)', bg2:'rgba(232,165,152,0.09)' };
 let authMode     = 'login';
+let currentAlbumInviteCode = '';
 
 // ── URL에서 album_id 파라미터 읽기 (공유 링크 지원) ──
 const urlParams = new URLSearchParams(location.search);
@@ -531,6 +538,14 @@ sb.auth.onAuthStateChange(async (event, session) => {
   }
 });
 
+function showMyInviteCode(){
+
+  alert(
+    '초대코드\n\n' +
+    currentAlbumInviteCode
+  );
+
+}
 function showApp() {
   document.getElementById('authWall').style.display = 'none';
   document.getElementById('appRoot').style.display = 'block';
@@ -564,7 +579,12 @@ async function loadFromSupabase() {
       targetId = data[0].id;
     } else {
       // 첫 방문 시 새 앨범 자동 생성
-      const { data: newAlbum } = await sb.from('albums').insert({ owner_id: currentUser.id, title: 'Playlist', partner_id: null }).select().single();
+      const { data: newAlbum } = await sb.from('albums').insert({
+  owner_id: currentUser.id,
+  title: title,
+  partner_id: null,
+  invite_code: crypto.randomUUID().slice(0,8)
+}).select().single();
       if (newAlbum) targetId = newAlbum.id;
     }
   }
@@ -573,9 +593,33 @@ async function loadFromSupabase() {
   albumId = targetId;
 
   // 앨범 정보
-  const { data: album } = await sb.from('albums').select('*').eq('id', albumId).single();
-  if (album) {
-    albumData = { title: album.title || '', artist: album.artist || '', year: album.year || '', desc: album.desc || '', coverUrl: album.cover_url || '' };
+  const { data: album } = await sb
+  .from('albums')
+  .select('*')
+  .eq('id', albumId)
+  .single();
+
+if(album && !album.invite_code){
+
+  const code =
+    crypto.randomUUID().slice(0,8);
+
+  await sb
+    .from('albums')
+    .update({
+      invite_code: code
+    })
+    .eq('id', album.id);
+
+  album.invite_code = code;
+}
+
+if (album) {
+
+  currentAlbumInviteCode =
+    album.invite_code || '';
+
+  albumData = { title: album.title || '', artist: album.artist || '', year: album.year || '', desc: album.desc || '', coverUrl: album.cover_url || '' };
     pageTitle = album.page_title || 'Playlist';
     currentTheme = album.theme ? JSON.parse(album.theme) : currentTheme;
   }
@@ -624,10 +668,11 @@ async function createNewAlbum(){
   const { data, error } = await sb
     .from('albums')
     .insert({
-      owner_id: currentUser.id,
-      title: title,
-      partner_id: null
-    })
+  owner_id: currentUser.id,
+  title: title,
+  partner_id: null,
+  invite_code: crypto.randomUUID().slice(0,8)
+})
     .select()
     .single();
 
@@ -680,13 +725,38 @@ async function deleteAlbum(id){
 
 }
   
-async function showInviteModal() {
-  const email = prompt('파트너의 이메일을 입력하세요:');
-  if (!email) return;
-  const { data: user } = await sb.from('profiles').select('id').eq('email', email).single();
-  if (!user) { alert('해당 이메일로 가입된 계정을 찾을 수 없어요.\n파트너가 먼저 가입 후 초대해주세요.'); return; }
-  await sb.from('albums').update({ partner_id: user.id }).eq('id', albumId);
-  alert(`${email}을 파트너로 초대했어요! 🎵`);
+async function showInviteModal(){
+
+  const code = prompt(
+    '파트너에게 받은 초대코드를 입력하세요'
+  );
+
+  if(!code) return;
+
+  const { data: album } =
+    await sb
+      .from('albums')
+      .select('*')
+      .eq('invite_code', code)
+      .single();
+
+  if(!album){
+
+    alert('초대코드가 올바르지 않습니다.');
+    return;
+  }
+
+  await sb
+    .from('albums')
+    .update({
+      partner_id: currentUser.id
+    })
+    .eq('id', album.id);
+
+  alert('플레이리스트에 연결되었습니다.');
+
+  location.href =
+    `${location.pathname}?album=${album.id}`;
 }
 let saveTimer = null;
 function queueSave(){
