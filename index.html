@@ -242,9 +242,13 @@ footer span { color: var(--accent-dim); }
 }
 
 .album-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+
   padding:12px;
+
   border-bottom:1px solid var(--glass-border);
-  cursor:pointer;
 }
 
 .album-row:hover{
@@ -623,7 +627,24 @@ async function createNewAlbum() {
   location.href =
     `${location.pathname}?album=${data.id}`;
 }
-    
+
+async function deleteAlbum(id){
+
+  if(!confirm('이 앨범을 삭제할까요?'))
+    return;
+
+  const { error } = await sb
+    .from('albums')
+    .delete()
+    .eq('id', id);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  openAlbumList();
+}
 
 async function showInviteModal() {
   const email = prompt('파트너의 이메일을 입력하세요:');
@@ -1040,18 +1061,34 @@ async function openAlbumList(){
 
   data.forEach(album => {
 
-    list.innerHTML += `
-      <div
-        class="album-row"
+  list.innerHTML += `
+    <div class="album-row">
+
+      <span
         onclick="
           location.href=
           '${location.pathname}?album=${album.id}'
         "
+        style="
+          flex:1;
+          cursor:pointer;
+        "
       >
         📀 ${album.title}
-      </div>
-    `;
-  });
+      </span>
+
+      <button
+        onclick="
+          event.stopPropagation();
+          deleteAlbum('${album.id}');
+        "
+      >
+        🗑
+      </button>
+
+    </div>
+  `;
+});
 
   document
     .getElementById('albumModal')
