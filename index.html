@@ -353,23 +353,8 @@ footer span { color: var(--accent-dim); }
 
 </div><!-- /appRoot -->
 
-function toggleMode() {
-  document.body.classList.toggle('light-mode');
-
-  localStorage.setItem(
-    'themeMode',
-    document.body.classList.contains('light-mode')
-      ? 'light'
-      : 'dark'
-  );
-}
-
-window.addEventListener('load', () => {
-  if(localStorage.getItem('themeMode') === 'light'){
-    document.body.classList.add('light-mode');
-  }
-});
   <script>
+    
 // ════════════════════════════════════════════════════════
 // ⚠️  아래 두 줄을 본인의 Supabase 프로젝트 값으로 교체하세요
 // ════════════════════════════════════════════════════════
@@ -772,6 +757,22 @@ function renderAll() {
   const savedAccent = currentTheme.accent;
   document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('active', d.dataset.accent===savedAccent));
 }
+function toggleMode() {
+  document.body.classList.toggle('light-mode');
+
+  localStorage.setItem(
+    'themeMode',
+    document.body.classList.contains('light-mode')
+      ? 'light'
+      : 'dark'
+  );
+}
+
+window.addEventListener('load', () => {
+  if(localStorage.getItem('themeMode') === 'light'){
+    document.body.classList.add('light-mode');
+  }
+});
 </script>
 </body>
 </html>
