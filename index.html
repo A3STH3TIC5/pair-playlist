@@ -1234,11 +1234,19 @@ function toggleRepeat(){
   const btn =
     document.getElementById('repeatBtn');
 
-  if(!btn) return;
+  if(btn){
 
-  btn.textContent = repeatAll
-    ? '🔁 전체반복 ON'
-    : '🔁 전체반복 OFF';
+    btn.textContent =
+      repeatAll
+      ? '🔁 전체반복 ON'
+      : '🔁 전체반복 OFF';
+
+  }
+
+  console.log(
+    'repeatAll:',
+    repeatAll
+  );
 
 }
 function renderAlbumList(data){
