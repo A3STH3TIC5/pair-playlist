@@ -1083,8 +1083,63 @@ function playTrackFromPlayer(index){
 
     `;
 }
+
+function renderAlbumList(data){
+
+  const list =
+    document.getElementById('albumList');
+
+  list.innerHTML = '';
+
+  data.forEach(album => {
+
+    list.innerHTML += `
+      <div class="album-row">
+
+        <span
+          onclick="
+            location.href=
+            '${location.pathname}?album=${album.id}'
+          "
+          style="
+            flex:1;
+            cursor:pointer;
+          "
+        >
+          📀 ${album.title}
+        </span>
+
+        <button
+          onclick="
+            event.stopPropagation();
+            deleteAlbum('${album.id}');
+          "
+        >
+          🗑
+        </button>
+
+      </div>
+    `;
+  });
+
+}
+
 async function openAlbumList(){
 
+  const cached =
+  JSON.parse(
+    localStorage.getItem('albumCache') || '[]'
+  );
+
+if(cached.length){
+
+  renderAlbumList(cached);
+
+  document
+    .getElementById('albumModal')
+    .style.display = 'flex';
+}
+  
   const { data } = await sb
     .from('albums')
     .select('id,title,created_at')
@@ -1096,38 +1151,7 @@ async function openAlbumList(){
   const list =
     document.getElementById('albumList');
 
-  list.innerHTML = '';
-  
-  data.forEach(album => {
-
-  list.innerHTML += `
-    <div class="album-row">
-
-      <span
-        onclick="
-          location.href=
-          '${location.pathname}?album=${album.id}'
-        "
-        style="
-          flex:1;
-          cursor:pointer;
-        "
-      >
-        📀 ${album.title}
-      </span>
-
-      <button
-        onclick="
-          event.stopPropagation();
-          deleteAlbum('${album.id}');
-        "
-      >
-        🗑
-      </button>
-
-    </div>
-  `;
-});
+ renderAlbumList(data);
 
   document
     .getElementById('albumModal')
