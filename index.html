@@ -360,15 +360,12 @@ footer span { color: var(--accent-dim); }
         <span class="share-url" id="shareUrl"></span>
         <button class="copy-btn" onclick="copyShareUrl()">복사</button>
       </div>
-      <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px" onclick="showInviteModal()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H4zM8 20h8M12 16v4"/></svg>
-        초대코드
-      </button>
-      <button
-  class="btn btn-ghost"
-  onclick="showMyInviteCode()"
->
-  🎟 초대코드
+      <button onclick="showInviteModal()">
+  🔗 코드 입력
+</button>
+
+<button onclick="showMyInviteCode()">
+  🎟 내 코드
 </button>
     </div>
 
@@ -579,12 +576,16 @@ async function loadFromSupabase() {
       targetId = data[0].id;
     } else {
       // 첫 방문 시 새 앨범 자동 생성
-      const { data: newAlbum } = await sb.from('albums').insert({
-  owner_id: currentUser.id,
-  title: title,
-  partner_id: null,
-  invite_code: crypto.randomUUID().slice(0,8)
-}).select().single();
+      const { data: newAlbum } = await sb
+  .from('albums')
+  .insert({
+    owner_id: currentUser.id,
+    title: '새 플레이리스트',
+    partner_id: null,
+    invite_code: crypto.randomUUID().slice(0,8)
+  })
+  .select()
+  .single();
       if (newAlbum) targetId = newAlbum.id;
     }
   }
@@ -734,29 +735,37 @@ async function showInviteModal(){
   if(!code) return;
 
   const { data: album } =
-    await sb
-      .from('albums')
-      .select('*')
-      .eq('invite_code', code)
-      .single();
-
-  if(!album){
-
-    alert('초대코드가 올바르지 않습니다.');
-    return;
-  }
-
   await sb
     .from('albums')
-    .update({
-      partner_id: currentUser.id
-    })
-    .eq('id', album.id);
+    .select('*')
+    .eq('invite_code', code)
+    .single();
 
-  alert('플레이리스트에 연결되었습니다.');
+if(!album){
 
-  location.href =
-    `${location.pathname}?album=${album.id}`;
+  alert('초대코드가 올바르지 않습니다.');
+  return;
+
+}
+
+if(album.partner_id){
+
+  alert('이미 연결된 플레이리스트입니다.');
+  return;
+
+}
+
+await sb
+  .from('albums')
+  .update({
+    partner_id: currentUser.id
+  })
+  .eq('id', album.id);
+
+alert('플레이리스트에 연결되었습니다.');
+
+location.href =
+  `${location.pathname}?album=${album.id}`;
 }
 let saveTimer = null;
 function queueSave(){
