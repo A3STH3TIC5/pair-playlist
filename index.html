@@ -614,7 +614,8 @@ function openPlayerMode() {
   location.href =
     `${location.pathname}?album=${albumId}&view=player`;
 }
-async function createNewAlbum() {
+
+async function createNewAlbum(){
 
   const title =
     prompt('새 플레이리스트 이름을 입력하세요');
@@ -628,6 +629,18 @@ async function createNewAlbum() {
       title: title,
       partner_id: null
     })
+    .select()
+    .single();
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  location.href =
+    `${location.pathname}?album=${data.id}`;
+
+}
 
 async function deleteAlbum(id){
 
