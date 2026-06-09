@@ -28,6 +28,9 @@ body.light-mode {
   --glass: rgba(0,0,0,0.04);
   --glass-border: rgba(0,0,0,0.08);
 
+  --bg-grad1: rgba(0,0,0,0.03);
+  --bg-grad2: rgba(0,0,0,0.02);
+
   --header-bg: #FFFFFF;
   --footer-bg: #FFFFFF;
 }
@@ -62,7 +65,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .btn-google:hover { border-color: var(--accent-dim); }
 
 /* ── TOP BAR ── */
-#topBar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: rgba(13,17,23,0.88); backdrop-filter: blur(16px); border-bottom: 1px solid var(--glass-border); padding: 10px 24px; display: none; align-items: center; gap: 12px; }
+#topBar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: var(--deep); backdrop-filter: blur(16px); border-bottom: 1px solid var(--glass-border); padding: 10px 24px; display: none; align-items: center; gap: 12px; }
 #topBar.visible { display: flex; }
 .user-badge { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #1a1428; flex-shrink: 0; overflow: hidden; }
@@ -191,7 +194,7 @@ section { padding: 48px 0; }
 .empty-state .big { font-family: 'Playfair Display', serif; font-size: 36px; color: var(--glass-border); }
 
 /* ── 하단 재생바 ── */
-.now-playing-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border); padding: 12px 24px; z-index: 100; align-items: center; gap: 14px; }
+.now-playing-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--deep); backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border); padding: 12px 24px; z-index: 100; align-items: center; gap: 14px; }
 .now-playing-bar.visible { display: flex; }
 .np-cover { width: 40px; height: 40px; border-radius: 50%; background: var(--card); overflow: hidden; flex-shrink: 0; border: 1px solid var(--glass-border); animation: spin 4s linear infinite; }
 .np-cover img { width: 100%; height: 100%; object-fit: cover; }
