@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pair Playlist</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Noto+Serif+KR:wght@300;400;600&family=Noto+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0D1117; --deep: #161B26; --card: #1C2333;
+  --accent: #C5B8F5; --accent-dim: #9B8ED4; --accent2: #E8A598;
+  --cream: #F2EDE8;
+  --glass: rgba(197,184,245,0.07); --glass-border: rgba(197,184,245,0.18);
+  --text-main: #EDE9E4; --text-dim: #8B8599;
+  --bg-grad1: rgba(197,184,245,0.12); --bg-grad2: rgba(232,165,152,0.09);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--navy); color: var(--text-main); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 60% 50% at 20% 10%, var(--bg-grad1) 0%, transparent 70%), radial-gradient(ellipse 40% 40% at 80% 80%, var(--bg-grad2) 0%, transparent 60%); pointer-events: none; z-index: 0; }
+.container { max-width: 900px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+/* ── AUTH WALL ── */
+#authWall { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.auth-card {
+  background: var(--card); border: 1px solid var(--glass-border); border-radius: 20px;
+  padding: 40px 36px; max-width: 400px; width: 100%; text-align: center;
+}
+.auth-card h2 { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--cream); margin-bottom: 6px; }
+.auth-card h2 em { font-style: italic; color: var(--accent); }
+.auth-card p { font-size: 13px; color: var(--text-dim); margin-bottom: 28px; line-height: 1.7; }
+.auth-tabs { display: flex; gap: 0; margin-bottom: 24px; border: 1px solid var(--glass-border); border-radius: 8px; overflow: hidden; }
+.auth-tab { flex: 1; padding: 9px; font-size: 13px; font-family: 'Noto Sans KR', sans-serif; cursor: pointer; background: transparent; border: none; color: var(--text-dim); transition: all 0.2s; }
+.auth-tab.active { background: var(--accent); color: #1a1428; font-weight: 600; }
+.auth-input { width: 100%; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px 14px; color: var(--text-main); font-family: 'Noto Sans KR', sans-serif; font-size: 14px; margin-bottom: 10px; }
+.auth-input:focus { outline: none; border-color: var(--accent-dim); }
+.auth-input::placeholder { color: var(--text-dim); opacity: 0.6; }
+.auth-msg { font-size: 12px; min-height: 20px; margin-bottom: 10px; color: var(--accent2); }
+.auth-msg.ok { color: #98D4C5; }
+.btn-auth { width: 100%; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; font-size: 14px; font-weight: 600; background: var(--accent); color: #1a1428; transition: background 0.2s; }
+.btn-auth:hover { background: var(--cream); }
+.auth-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--text-dim); font-size: 12px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
+.btn-google { width: 100%; padding: 11px; border-radius: 8px; border: 1px solid var(--glass-border); cursor: pointer; font-family: 'Noto Sans KR', sans-serif; font-size: 13px; background: transparent; color: var(--text-main); transition: border-color 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-google:hover { border-color: var(--accent-dim); }
+
+/* ── TOP BAR ── */
+#topBar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: rgba(13,17,23,0.88); backdrop-filter: blur(16px); border-bottom: 1px solid var(--glass-border); padding: 10px 24px; display: none; align-items: center; gap: 12px; }
+#topBar.visible { display: flex; }
+.user-badge { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #1a1428; flex-shrink: 0; overflow: hidden; }
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.user-email { font-size: 12px; color: var(--text-dim); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-sm { padding: 5px 12px; border-radius: 5px; border: 1px solid var(--glass-border); background: transparent; color: var(--text-dim); font-size: 12px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; transition: all 0.2s; }
+.btn-sm:hover { border-color: var(--accent-dim); color: var(--accent); }
+
+/* ── 헤더 ── */
+header { padding-top: 80px; padding-bottom: 32px; text-align: center; border-bottom: 1px solid var(--glass-border); }
+.eyebrow { font-size: 11px; font-weight: 300; letter-spacing: 0.25em; color: var(--accent-dim); text-transform: uppercase; margin-bottom: 12px; }
+.editable-title-wrap { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.editable-title-wrap:hover .edit-pencil { opacity: 1; }
+.edit-pencil { opacity: 0; transition: opacity 0.2s; color: var(--accent-dim); }
+header h1 { font-family: 'Playfair Display', serif; font-size: clamp(28px, 6vw, 52px); font-weight: 400; color: var(--cream); display: inline; line-height: 1.15; }
+header h1 em { font-style: italic; color: var(--accent); }
+#titleInput { font-family: 'Playfair Display', serif; font-size: clamp(28px, 6vw, 52px); font-weight: 400; color: var(--cream); background: transparent; border: none; border-bottom: 2px solid var(--accent); outline: none; text-align: center; width: 100%; max-width: 500px; display: none; padding: 4px 8px; }
+.subtitle { margin-top: 10px; font-size: 13px; color: var(--text-dim); font-family: 'Noto Serif KR', serif; font-weight: 300; }
+
+/* ── SHARE BAR ── */
+.share-bar { margin-top: 18px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.share-url-wrap { display: flex; align-items: center; gap: 6px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 8px; padding: 6px 12px; max-width: 360px; }
+.share-url { font-size: 11px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy-btn { font-size: 11px; color: var(--accent); background: none; border: none; cursor: pointer; flex-shrink: 0; padding: 2px 6px; border-radius: 4px; font-family: 'Noto Sans KR', sans-serif; }
+.copy-btn:hover { background: var(--glass); }
+
+/* ── 테마 바 ── */
+.theme-bar { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.theme-bar-label { font-size: 10px; letter-spacing: 0.2em; color: var(--text-dim); text-transform: uppercase; }
+.theme-dot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.15s, border-color 0.15s; }
+.theme-dot:hover { transform: scale(1.2); }
+.theme-dot.active { border-color: var(--cream); }
+#customColorPicker { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--glass-border); cursor: pointer; background: none; padding: 0; -webkit-appearance: none; appearance: none; overflow: hidden; }
+#customColorPicker::-webkit-color-swatch-wrapper { padding: 0; }
+#customColorPicker::-webkit-color-swatch { border: none; border-radius: 50%; }
+
+/* ── 섹션 공통 ── */
+section { padding: 48px 0; }
+.section-label { font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent-dim); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
+
+/* ── 앨범 커버 ── */
+.album-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+@media (max-width: 640px) { .album-wrapper { grid-template-columns: 1fr; } }
+.lp-stage { position: relative; width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.lp-disc { width: 100%; height: 100%; border-radius: 50%; background: repeating-radial-gradient(circle at 50%, #1a1a2e 0px, #1a1a2e 2px, #111118 3px, #111118 5px); box-shadow: 0 0 0 3px #2a2a3e, 0 12px 60px rgba(0,0,0,0.8); animation: spin 10s linear infinite paused; position: relative; }
+.lp-disc.playing { animation-play-state: running; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.album-cover { position: absolute; width: 58%; height: 58%; border-radius: 50%; overflow: hidden; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,0.12); background: var(--card); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: box-shadow 0.3s; }
+.album-cover:hover { box-shadow: 0 0 30px rgba(197,184,245,0.3); }
+.album-cover img { width: 100%; height: 100%; object-fit: cover; }
+.upload-hint { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-dim); font-size: 12px; text-align: center; padding: 16px; pointer-events: none; }
+.upload-hint svg { opacity: 0.4; }
+.album-cover input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.lp-hole { position: absolute; width: 8%; height: 8%; border-radius: 50%; background: var(--navy); border: 1px solid #333; z-index: 10; }
+.album-info { display: flex; flex-direction: column; gap: 14px; }
+.album-info label { font-size: 10px; letter-spacing: 0.2em; color: var(--accent-dim); text-transform: uppercase; display: block; margin-bottom: 5px; }
+.album-info input, .album-info textarea { width: 100%; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 6px; padding: 10px 14px; color: var(--text-main); font-family: 'Noto Serif KR', serif; font-size: 14px; resize: none; transition: border-color 0.2s; }
+.album-info input:focus, .album-info textarea:focus { outline: none; border-color: var(--accent-dim); }
+.album-info input::placeholder, .album-info textarea::placeholder { color: var(--text-dim); opacity: 0.7; }
+.album-card-preview { display: none; background: linear-gradient(135deg, #1a1428 0%, #0f1520 100%); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; position: relative; }
+.album-card-preview.visible { display: block; }
+.album-card-preview .cover-img { width: 100%; aspect-ratio: 1; object-fit: cover; filter: brightness(0.85); }
+.card-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(10,8,18,0.95) 0%, transparent 100%); padding: 20px 18px 18px; }
+.card-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--cream); line-height: 1.2; }
+.card-sub { font-size: 11px; color: var(--accent); margin-top: 4px; letter-spacing: 0.1em; }
+
+/* ── 스티커 ── */
+#stickerLayer { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+.sticker-item { position: absolute; cursor: grab; pointer-events: all; user-select: none; touch-action: none; }
+.sticker-item:active { cursor: grabbing; }
+.sticker-item img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+.sticker-del { position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent2); color: #1a0a0a; font-size: 11px; font-weight: 700; border: none; cursor: pointer; display: none; align-items: center; justify-content: center; z-index: 2; }
+.sticker-item:hover .sticker-del { display: flex; }
+.sticker-resize { position: absolute; bottom: -6px; right: -6px; width: 16px; height: 16px; background: var(--accent); border-radius: 3px; cursor: se-resize; display: none; }
+.sticker-item:hover .sticker-resize { display: flex; align-items: center; justify-content: center; }
+.sticker-toolbar { position: fixed; bottom: 80px; right: 20px; z-index: 60; }
+.sticker-fab { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: #1a1428; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(197,184,245,0.4); font-size: 20px; transition: transform 0.2s; }
+.sticker-fab:hover { transform: scale(1.1); }
+#stickerUpload { display: none; }
+
+/* ── 버튼 ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; font-size: 13px; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: #1a1428; font-weight: 600; }
+.btn-primary:hover { background: var(--cream); }
+.btn-ghost { background: transparent; border: 1px solid var(--glass-border); color: var(--text-dim); }
+.btn-ghost:hover { border-color: var(--accent-dim); color: var(--accent); }
+
+/* ── 트랙 폼 ── */
+.add-track-form { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 500px) { .add-track-form { grid-template-columns: 1fr; } }
+.add-track-form input, .add-track-form textarea { background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 6px; padding: 10px 14px; color: var(--text-main); font-family: 'Noto Sans KR', sans-serif; font-size: 13px; width: 100%; }
+.add-track-form input:focus, .add-track-form textarea:focus { outline: none; border-color: var(--accent-dim); }
+.add-track-form input::placeholder, .add-track-form textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
+.add-track-form .span-full { grid-column: 1 / -1; }
+.add-track-form textarea { resize: none; height: 70px; }
+
+/* ── 트랙 리스트 ── */
+.track-list { display: flex; flex-direction: column; gap: 12px; }
+.track-item { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden; transition: border-color 0.2s; }
+.track-item:hover { border-color: rgba(197,184,245,0.3); }
+.track-item.active { border-color: var(--accent-dim); }
+.track-header { display: flex; align-items: center; gap: 14px; padding: 14px 16px; cursor: pointer; }
+.track-num { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--accent); width: 32px; text-align: center; flex-shrink: 0; line-height: 1; }
+.track-info { flex: 1; min-width: 0; }
+.track-title { font-family: 'Noto Serif KR', serif; font-size: 15px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track-artist { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.track-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.track-actions button { background: none; border: none; cursor: pointer; color: var(--text-dim); padding: 4px; border-radius: 4px; transition: color 0.2s; }
+.track-actions button:hover { color: var(--accent2); }
+.track-panel { display: none; border-top: 1px solid var(--glass-border); }
+.track-panel.open { display: block; }
+.yt-embed { width: 100%; aspect-ratio: 16/9; background: #000; }
+.yt-embed iframe { width: 100%; height: 100%; border: none; display: block; }
+.memo-area { padding: 14px 16px; }
+.memo-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent-dim); margin-bottom: 8px; }
+.memo-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.memo-item { background: rgba(255,255,255,0.03); border-left: 2px solid var(--accent-dim); padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 13px; color: var(--text-main); line-height: 1.6; }
+.memo-item .memo-meta { font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+.memo-input-row { display: flex; gap: 8px; align-items: flex-end; }
+.memo-input-row textarea { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-family: 'Noto Sans KR', sans-serif; font-size: 13px; resize: none; height: 60px; }
+.memo-input-row textarea:focus { outline: none; border-color: var(--accent-dim); }
+.memo-input-row textarea::placeholder { color: var(--text-dim); opacity: 0.6; }
+
+.empty-state { text-align: center; padding: 48px 16px; color: var(--text-dim); font-size: 13px; line-height: 2; }
+.empty-state .big { font-family: 'Playfair Display', serif; font-size: 36px; color: var(--glass-border); }
+
+/* ── 하단 재생바 ── */
+.now-playing-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border); padding: 12px 24px; z-index: 100; align-items: center; gap: 14px; }
+.now-playing-bar.visible { display: flex; }
+.np-cover { width: 40px; height: 40px; border-radius: 50%; background: var(--card); overflow: hidden; flex-shrink: 0; border: 1px solid var(--glass-border); animation: spin 4s linear infinite; }
+.np-cover img { width: 100%; height: 100%; object-fit: cover; }
+.np-info { flex: 1; min-width: 0; }
+.np-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-sub { font-size: 11px; color: var(--accent); }
+footer { text-align: center; padding: 32px 0 80px; font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; border-top: 1px solid var(--glass-border); }
+footer span { color: var(--accent-dim); }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════
+     ① 로그인 화면 (인증 전)
+════════════════════════════════════ -->
+<div id="authWall">
+  <div class="auth-card">
+    <h2><em>Pair</em> Playlist</h2>
+    <p>페어의 음악을 함께 기록하는 공간<br>로그인하여 나만의 앨범을 만들어보세요</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">로그인</button>
+      <button class="auth-tab" onclick="switchTab('signup')">회원가입</button>
+    </div>
+    <div id="authMsg" class="auth-msg"></div>
+    <input type="email" class="auth-input" id="authEmail" placeholder="이메일">
+    <input type="password" class="auth-input" id="authPassword" placeholder="비밀번호">
+    <button class="btn-auth" id="authBtn" onclick="handleAuth()">로그인</button>
+    <div class="auth-divider">또는</div>
+    <button class="btn-google" onclick="loginWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Google로 계속하기
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     ② 메인 앱 (인증 후)
+════════════════════════════════════ -->
+<div id="appRoot" style="display:none">
+
+<!-- 상단바 -->
+<div id="topBar">
+  <span style="font-family:'Playfair Display',serif;font-size:15px;color:var(--accent);font-style:italic;">Pair Playlist</span>
+  <div class="user-badge">
+    <div class="user-avatar" id="userAvatar"></div>
+    <span class="user-email" id="userEmail"></span>
+    <button class="btn-sm" onclick="signOut()">로그아웃</button>
+  </div>
+</div>
+
+<!-- 스티커 레이어 -->
+<div id="stickerLayer"></div>
+<div class="sticker-toolbar">
+  <button class="sticker-fab" title="스티커 추가" onclick="document.getElementById('stickerUpload').click()">🩹</button>
+  <input type="file" id="stickerUpload" accept="image/*">
+</div>
+
+<div class="container">
+  <!-- 헤더 -->
+  <header>
+    <p class="eyebrow">Pair Playlist</p>
+    <div class="editable-title-wrap" onclick="startEditTitle()" id="titleDisplay">
+      <h1><em id="titleEm">Playlist</em></h1>
+      <span class="edit-pencil">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </span>
+    </div>
+    <input type="text" id="titleInput" value="Playlist" onblur="finishEditTitle()" onkeydown="if(event.key==='Enter')finishEditTitle()">
+    <p class="subtitle">페어의 순간을 음악으로 기록합니다</p>
+
+    <!-- 공유 URL -->
+    <div class="share-bar" id="shareBar" style="display:none">
+      <div class="share-url-wrap">
+        <span class="share-url" id="shareUrl"></span>
+        <button class="copy-btn" onclick="copyShareUrl()">복사</button>
+      </div>
+      <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px" onclick="showInviteModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H4zM8 20h8M12 16v4"/></svg>
+        파트너 초대
+      </button>
+    </div>
+
+    <!-- 테마 -->
+    <div class="theme-bar">
+      <span class="theme-bar-label">Theme</span>
+      <div class="theme-dot active" style="background:#C5B8F5" data-accent="#C5B8F5" data-accent-dim="#9B8ED4" data-accent2="#E8A598" data-bg1="rgba(197,184,245,0.12)" data-bg2="rgba(232,165,152,0.09)" onclick="applyTheme(this)" title="Purple"></div>
+      <div class="theme-dot" style="background:#98D4C5" data-accent="#98D4C5" data-accent-dim="#6DB8A8" data-accent2="#F0C97A" data-bg1="rgba(152,212,197,0.12)" data-bg2="rgba(240,201,122,0.09)" onclick="applyTheme(this)" title="Mint"></div>
+      <div class="theme-dot" style="background:#F4A7B9" data-accent="#F4A7B9" data-accent-dim="#D97F97" data-accent2="#A8C4E0" data-bg1="rgba(244,167,185,0.12)" data-bg2="rgba(168,196,224,0.09)" onclick="applyTheme(this)" title="Rose"></div>
+      <div class="theme-dot" style="background:#F0C97A" data-accent="#F0C97A" data-accent-dim="#C8A040" data-accent2="#98B8F0" data-bg1="rgba(240,201,122,0.12)" data-bg2="rgba(152,184,240,0.09)" onclick="applyTheme(this)" title="Gold"></div>
+      <div class="theme-dot" style="background:#A8D8A8" data-accent="#A8D8A8" data-accent-dim="#78B878" data-accent2="#F4A7B9" data-bg1="rgba(168,216,168,0.12)" data-bg2="rgba(244,167,185,0.09)" onclick="applyTheme(this)" title="Green"></div>
+      <input type="color" id="customColorPicker" value="#C5B8F5" oninput="applyCustomColor(this.value)" title="커스텀 색상">
+    </div>
+  </header>
+
+  <!-- 앨범 커버 섹션 -->
+  <section>
+    <div class="section-label">Album Cover</div>
+    <div class="album-wrapper">
+      <div class="lp-stage">
+        <div class="lp-disc" id="lpDisc">
+          <div class="album-cover" id="albumCover">
+            <input type="file" accept="image/*" id="coverUpload">
+            <div class="upload-hint" id="uploadHint">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12l4-4 4 4"/></svg>
+              <span>일러스트 업로드</span>
+            </div>
+            <img id="coverImg" src="" alt="" style="display:none">
+          </div>
+          <div class="lp-hole"></div>
+        </div>
+      </div>
+      <div class="album-info">
+        <div><label>앨범 제목</label><input type="text" id="albumTitle" placeholder="우리의 봄" maxlength="40"></div>
+        <div><label>아티스트 / 페어 이름</label><input type="text" id="albumArtist" placeholder="민지 & 지수" maxlength="40"></div>
+        <div><label>연도</label><input type="text" id="albumYear" placeholder="2025" maxlength="10"></div>
+        <div><label>한 줄 소개</label><textarea id="albumDesc" placeholder="우리가 함께한 계절의 사운드트랙" style="height:70px;resize:none;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;padding:10px 14px;color:var(--text-main);font-family:'Noto Serif KR',serif;font-size:13px;width:100%;"></textarea></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="saveAlbumInfo()">저장</button>
+          <button class="btn btn-ghost" id="resetCoverBtn" onclick="resetCover()" style="display:none">커버 초기화</button>
+        </div>
+        <div class="album-card-preview" id="albumCardPreview">
+          <img class="cover-img" id="previewImg" src="" alt="">
+          <div class="card-overlay">
+            <div class="card-title" id="previewTitle">—</div>
+            <div class="card-sub" id="previewSub">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 트랙 섹션 -->
+  <section>
+    <div class="section-label">Tracks</div>
+    <div class="add-track-form">
+      <div><input type="text" id="trackTitle" placeholder="곡 제목" maxlength="80"></div>
+      <div><input type="text" id="trackArtist" placeholder="아티스트" maxlength="60"></div>
+      <div class="span-full"><input type="text" id="trackUrl" placeholder="유튜브 링크 (https://youtu.be/... 또는 youtube.com/watch?v=...)" style="width:100%"></div>
+      <div class="span-full"><textarea id="trackMemo" placeholder="이 곡이 어울리는 이유를 적어보세요..." style="height:60px;width:100%;resize:none;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:6px;padding:10px 14px;color:var(--text-main);font-family:'Noto Sans KR',sans-serif;font-size:13px;"></textarea></div>
+      <div class="span-full" style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="addTrack()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Track 추가
+        </button>
+      </div>
+    </div>
+    <div class="track-list" id="trackList"></div>
+    <div class="empty-state" id="emptyState"><div class="big">♩</div>유튜브 링크를 넣어 첫 번째 트랙을 추가해보세요</div>
+  </section>
+
+  <footer><span>♥</span> 우리의 페어를 위한 플레이리스트</footer>
+</div>
+
+<!-- 하단 재생바 -->
+<div class="now-playing-bar" id="nowPlayingBar">
+  <div class="np-cover" id="npCover"><img id="npCoverImg" src="" alt="" style="display:none"></div>
+  <div class="np-info"><div class="np-title" id="npTitle">—</div><div class="np-sub" id="npSub">Now Playing</div></div>
+  <button class="btn btn-ghost" onclick="closeNowPlaying()" style="flex-shrink:0;padding:6px 12px;font-size:12px;">✕</button>
+</div>
+
+</div><!-- /appRoot -->
+
+<script>
+// ════════════════════════════════════════════════════════
+// ⚠️  아래 두 줄을 본인의 Supabase 프로젝트 값으로 교체하세요
+// ════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://zwzbgrhxagsbemtkjyom.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3emJncmh4YWdzYmVtdGtqeW9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTY4MTAsImV4cCI6MjA5NjU5MjgxMH0.a-Dg0GHxcuuyRF4c6_GtJ7hrYOIrWXAhEGSgSjPs9ro';
+// ════════════════════════════════════════════════════════
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let currentUser  = null;
+let albumId      = null;
+let tracks       = [];
+let stickers     = [];
+let albumData    = {};
+let pageTitle    = 'Playlist';
+let currentTheme = { accent:'#C5B8F5', accentDim:'#9B8ED4', accent2:'#E8A598', bg1:'rgba(197,184,245,0.12)', bg2:'rgba(232,165,152,0.09)' };
+let authMode     = 'login';
+
+// ── URL에서 album_id 파라미터 읽기 (공유 링크 지원) ──
+const urlParams = new URLSearchParams(location.search);
+const sharedAlbumId = urlParams.get('album');
+
+// ════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════
+function switchTab(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0 && mode==='login')||(i===1 && mode==='signup')));
+  document.getElementById('authBtn').textContent = mode === 'login' ? '로그인' : '회원가입';
+  document.getElementById('authMsg').textContent = '';
+}
+async function handleAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const pw    = document.getElementById('authPassword').value;
+  const msg   = document.getElementById('authMsg');
+  if (!email || !pw) { msg.textContent = '이메일과 비밀번호를 입력해주세요.'; return; }
+  msg.textContent = '...';
+  if (authMode === 'signup') {
+    const { error } = await sb.auth.signUp({ email, password: pw });
+    if (error) { msg.textContent = error.message; return; }
+    msg.className = 'auth-msg ok';
+    msg.textContent = '가입 완료! 이메일 인증 후 로그인하세요.';
+  } else {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if (error) { msg.textContent = '이메일 또는 비밀번호를 확인하세요.'; }
+  }
+}
+async function loginWithGoogle() {
+  await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+}
+async function signOut() {
+  await sb.auth.signOut();
+  currentUser = null; albumId = null;
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('authWall').style.display = 'flex';
+  document.getElementById('topBar').classList.remove('visible');
+}
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    showApp();
+  }
+});
+
+function showApp() {
+  document.getElementById('authWall').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+  document.getElementById('topBar').classList.add('visible');
+  const email = currentUser.email || '';
+  document.getElementById('userEmail').textContent = email;
+  const letter = email[0]?.toUpperCase() || '?';
+  const avatarEl = document.getElementById('userAvatar');
+  if (currentUser.user_metadata?.avatar_url) {
+    avatarEl.innerHTML = `<img src="${currentUser.user_metadata.avatar_url}" alt="">`;
+  } else {
+    avatarEl.textContent = letter;
+  }
+  loadFromSupabase();
+}
+
+// ════════════════════════════════════════════════════════
+// SUPABASE DATA
+// ════════════════════════════════════════════════════════
+async function loadFromSupabase() {
+  // 공유 링크로 온 경우 해당 album_id 사용, 아니면 내 앨범 조회
+  let targetId = sharedAlbumId || null;
+
+  if (!targetId) {
+    const { data } = await sb.from('albums').select('*').eq('owner_id', currentUser.id).order('created_at', { ascending: false }).limit(1);
+    if (data && data.length > 0) {
+      targetId = data[0].id;
+    } else {
+      // 첫 방문 시 새 앨범 자동 생성
+      const { data: newAlbum } = await sb.from('albums').insert({ owner_id: currentUser.id, title: 'Playlist', partner_id: null }).select().single();
+      if (newAlbum) targetId = newAlbum.id;
+    }
+  }
+
+  if (!targetId) return;
+  albumId = targetId;
+
+  // 앨범 정보
+  const { data: album } = await sb.from('albums').select('*').eq('id', albumId).single();
+  if (album) {
+    albumData = { title: album.title || '', artist: album.artist || '', year: album.year || '', desc: album.desc || '', coverUrl: album.cover_url || '' };
+    pageTitle = album.page_title || 'Playlist';
+    currentTheme = album.theme ? JSON.parse(album.theme) : currentTheme;
+  }
+
+  // 트랙
+  const { data: trackData } = await sb.from('tracks').select('*, memos(*)').eq('album_id', albumId).order('position', { ascending: true });
+  tracks = (trackData || []).map(t => ({ id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id, memos: (t.memos || []).map(m => ({ id: m.id, text: m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR', { month:'short', day:'numeric' }) })) }));
+
+  // 스티커
+  const { data: stickerData } = await sb.from('stickers').select('*').eq('album_id', albumId);
+  stickers = (stickerData || []).map(s => ({ id: s.id, src: s.src, x: s.x, y: s.y, w: s.w }));
+
+  applyThemeVars(currentTheme);
+  renderAll();
+
+  // 공유 URL 표시 (오너인 경우)
+  if (album && album.owner_id === currentUser.id) {
+    const shareUrl = `${location.origin}${location.pathname}?album=${albumId}`;
+    document.getElementById('shareUrl').textContent = shareUrl;
+    document.getElementById('shareBar').style.display = 'flex';
+  }
+}
+
+function copyShareUrl() {
+  const url = document.getElementById('shareUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✓ 복사됨';
+    setTimeout(() => btn.textContent = '복사', 1500);
+  });
+}
+
+async function showInviteModal() {
+  const email = prompt('파트너의 이메일을 입력하세요:');
+  if (!email) return;
+  const { data: user } = await sb.from('profiles').select('id').eq('email', email).single();
+  if (!user) { alert('해당 이메일로 가입된 계정을 찾을 수 없어요.\n파트너가 먼저 가입 후 초대해주세요.'); return; }
+  await sb.from('albums').update({ partner_id: user.id }).eq('id', albumId);
+  alert(`${email}을 파트너로 초대했어요! 🎵`);
+}
+
+async function saveAlbumToDB() {
+  if (!albumId) return;
+  await sb.from('albums').update({
+    title: albumData.title, artist: albumData.artist, year: albumData.year,
+    desc: albumData.desc, cover_url: albumData.coverUrl,
+    page_title: pageTitle, theme: JSON.stringify(currentTheme)
+  }).eq('id', albumId);
+}
+
+// ════════════════════════════════════════════════════════
+// 제목 편집
+// ════════════════════════════════════════════════════════
+function startEditTitle() {
+  document.getElementById('titleDisplay').style.display = 'none';
+  const inp = document.getElementById('titleInput');
+  inp.style.display = 'inline-block'; inp.value = pageTitle; inp.focus(); inp.select();
+}
+function finishEditTitle() {
+  const val = document.getElementById('titleInput').value.trim() || 'Playlist';
+  pageTitle = val;
+  document.getElementById('titleInput').style.display = 'none';
+  document.getElementById('titleDisplay').style.display = 'inline-flex';
+  document.getElementById('titleEm').textContent = pageTitle;
+  document.title = pageTitle;
+  saveAlbumToDB();
+}
+
+// ════════════════════════════════════════════════════════
+// 테마
+// ════════════════════════════════════════════════════════
+function applyThemeVars(t) {
+  const r = document.documentElement.style;
+  r.setProperty('--accent', t.accent); r.setProperty('--accent-dim', t.accentDim); r.setProperty('--accent2', t.accent2);
+  r.setProperty('--glass', hexToRgba(t.accent, 0.07)); r.setProperty('--glass-border', hexToRgba(t.accent, 0.18));
+  r.setProperty('--bg-grad1', t.bg1); r.setProperty('--bg-grad2', t.bg2);
+}
+function applyTheme(dot) {
+  document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active')); dot.classList.add('active');
+  currentTheme = { accent:dot.dataset.accent, accentDim:dot.dataset.accentDim, accent2:dot.dataset.accent2, bg1:dot.dataset.bg1, bg2:dot.dataset.bg2 };
+  applyThemeVars(currentTheme); saveAlbumToDB();
+}
+function applyCustomColor(hex) {
+  document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'));
+  currentTheme = { accent:hex, accentDim:shadeColor(hex,-20), accent2:complementColor(hex), bg1:hexToRgba(hex,0.12), bg2:hexToRgba(complementColor(hex),0.09) };
+  applyThemeVars(currentTheme); saveAlbumToDB();
+}
+function hexToRgba(hex,a) { const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
+function shadeColor(hex,p) { let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); r=Math.max(0,Math.min(255,r+p*2));g=Math.max(0,Math.min(255,g+p*2));b=Math.max(0,Math.min(255,b+p*2)); return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join(''); }
+function complementColor(hex) { let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return '#'+[(r+128)%256,(g+128)%256,(b+128)%256].map(v=>v.toString(16).padStart(2,'0')).join(''); }
+
+// ════════════════════════════════════════════════════════
+// 앨범 커버
+// ════════════════════════════════════════════════════════
+document.getElementById('coverUpload').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    albumData.coverUrl = ev.target.result;
+    document.getElementById('coverImg').src = ev.target.result;
+    document.getElementById('coverImg').style.display = 'block';
+    document.getElementById('uploadHint').style.display = 'none';
+    document.getElementById('lpDisc').classList.add('playing');
+    document.getElementById('resetCoverBtn').style.display = 'inline-flex';
+    updatePreviewCard();
+  };
+  reader.readAsDataURL(file);
+});
+function resetCover() {
+  albumData.coverUrl = '';
+  document.getElementById('coverImg').src = ''; document.getElementById('coverImg').style.display = 'none';
+  document.getElementById('uploadHint').style.display = 'flex';
+  document.getElementById('lpDisc').classList.remove('playing');
+  document.getElementById('resetCoverBtn').style.display = 'none';
+  document.getElementById('albumCardPreview').classList.remove('visible');
+}
+function saveAlbumInfo() {
+  albumData.title = document.getElementById('albumTitle').value.trim();
+  albumData.artist = document.getElementById('albumArtist').value.trim();
+  albumData.year = document.getElementById('albumYear').value.trim();
+  albumData.desc = document.getElementById('albumDesc').value.trim();
+  saveAlbumToDB(); updatePreviewCard();
+}
+function updatePreviewCard() {
+  if (albumData.coverUrl) { document.getElementById('previewImg').src = albumData.coverUrl; document.getElementById('albumCardPreview').classList.add('visible'); }
+  document.getElementById('previewTitle').textContent = albumData.title || '우리의 앨범';
+  document.getElementById('previewSub').textContent = [albumData.artist, albumData.year].filter(Boolean).join(' · ') || 'Pair Playlist';
+}
+
+// ════════════════════════════════════════════════════════
+// 트랙
+// ════════════════════════════════════════════════════════
+function extractYtId(url) {
+  try { const u = new URL(url); if (u.hostname.includes('youtu.be')) return u.pathname.slice(1).split('?')[0]; if (u.hostname.includes('youtube.com')) return u.searchParams.get('v'); } catch(e) {}
+  const m = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/); return m ? m[1] : null;
+}
+async function addTrack() {
+  const title = document.getElementById('trackTitle').value.trim();
+  const artist = document.getElementById('trackArtist').value.trim();
+  const url = document.getElementById('trackUrl').value.trim();
+  const memo = document.getElementById('trackMemo').value.trim();
+  if (!title || !url) { alert('곡 제목과 유튜브 링크는 필수입니다.'); return; }
+  const ytId = extractYtId(url);
+  if (!ytId) { alert('유효한 유튜브 링크를 입력해주세요.'); return; }
+  const { data: newTrack } = await sb.from('tracks').insert({ album_id: albumId, title, artist, yt_id: ytId, position: tracks.length }).select().single();
+  if (newTrack) {
+    if (memo) await sb.from('memos').insert({ track_id: newTrack.id, user_id: currentUser.id, text: memo });
+    await reloadTracks();
+    ['trackTitle','trackArtist','trackUrl','trackMemo'].forEach(id => document.getElementById(id).value = '');
+  }
+}
+async function deleteTrack(id) {
+  if (!confirm('이 트랙을 삭제할까요?')) return;
+  await sb.from('memos').delete().eq('track_id', id);
+  await sb.from('tracks').delete().eq('id', id);
+  await reloadTracks();
+}
+async function addMemo(trackId) {
+  const ta = document.getElementById('memoInput_' + trackId);
+  const text = ta.value.trim(); if (!text) return;
+  await sb.from('memos').insert({ track_id: trackId, user_id: currentUser.id, text });
+  ta.value = '';
+  await reloadTracks();
+  renderTrackList();
+  document.getElementById('panel_' + trackId).classList.add('open');
+  document.getElementById('item_' + trackId).classList.add('active');
+}
+async function reloadTracks() {
+  const { data } = await sb.from('tracks').select('*, memos(*)').eq('album_id', albumId).order('position', { ascending: true });
+  tracks = (data || []).map(t => ({ id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id, memos: (t.memos||[]).map(m => ({ id:m.id, text:m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}) })) }));
+  renderTrackList();
+}
+
+// ════════════════════════════════════════════════════════
+// 스티커
+// ════════════════════════════════════════════════════════
+document.getElementById('stickerUpload').addEventListener('change', function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    const { data } = await sb.from('stickers').insert({ album_id: albumId, src: ev.target.result, x: window.innerWidth/2-50, y: window.innerHeight/2-50, w: 100 }).select().single();
+    if (data) { stickers.push({ id:data.id, src:data.src, x:data.x, y:data.y, w:data.w }); renderSticker(stickers[stickers.length-1]); }
+  };
+  reader.readAsDataURL(file); this.value = '';
+});
+function renderSticker(s) {
+  const el = document.createElement('div'); el.className = 'sticker-item'; el.id = 'sticker_'+s.id;
+  el.style.cssText = `left:${s.x}px;top:${s.y}px;width:${s.w}px;height:${s.w}px;`;
+  el.innerHTML = `<img src="${s.src}" alt="sticker" draggable="false"><button class="sticker-del" onclick="deleteSticker('${s.id}')">✕</button><div class="sticker-resize" id="resize_${s.id}"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 10L10 0v10H0z" opacity="0.5"/></svg></div>`;
+  makeDraggable(el, s); makeResizable(el.querySelector('.sticker-resize'), el, s);
+  document.getElementById('stickerLayer').appendChild(el);
+}
+function renderAllStickers() { document.getElementById('stickerLayer').innerHTML = ''; stickers.forEach(s => renderSticker(s)); }
+async function deleteSticker(id) {
+  await sb.from('stickers').delete().eq('id', id);
+  stickers = stickers.filter(s=>s.id!==id);
+  const el = document.getElementById('sticker_'+id); if (el) el.remove();
+}
+function makeDraggable(el, s) {
+  let sx,sy,sl,st;
+  el.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('sticker-del')||e.target.closest('.sticker-resize')) return;
+    e.preventDefault(); sx=e.clientX;sy=e.clientY;sl=parseInt(el.style.left);st=parseInt(el.style.top);
+    const mm=e2=>{el.style.left=(sl+e2.clientX-sx)+'px';el.style.top=(st+e2.clientY-sy)+'px';s.x=sl+e2.clientX-sx;s.y=st+e2.clientY-sy;};
+    const mu=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);sb.from('stickers').update({x:s.x,y:s.y}).eq('id',s.id);};
+    document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
+  });
+}
+function makeResizable(handle, el, s) {
+  if (!handle) return;
+  let sx,sw;
+  handle.addEventListener('mousedown', e => {
+    e.stopPropagation(); e.preventDefault(); sx=e.clientX; sw=parseInt(el.style.width);
+    const mm=e2=>{const w=Math.max(40,sw+(e2.clientX-sx));el.style.width=w+'px';el.style.height=w+'px';s.w=w;};
+    const mu=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);sb.from('stickers').update({w:s.w}).eq('id',s.id);};
+    document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// 재생
+// ════════════════════════════════════════════════════════
+function togglePanel(trackId) {
+  const panel = document.getElementById('panel_'+trackId);
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.track-panel').forEach(p=>p.classList.remove('open'));
+  document.querySelectorAll('.track-item').forEach(i=>i.classList.remove('active'));
+  if (!isOpen) {
+    panel.classList.add('open'); document.getElementById('item_'+trackId).classList.add('active');
+    const t = tracks.find(t=>t.id===trackId);
+    if (t) { document.getElementById('npTitle').textContent=t.title; document.getElementById('npSub').textContent=t.artist||'Now Playing'; updateNowPlayingCover(); document.getElementById('nowPlayingBar').classList.add('visible'); document.getElementById('lpDisc').classList.add('playing'); }
+  } else { closeNowPlaying(); }
+}
+function closeNowPlaying() { document.getElementById('nowPlayingBar').classList.remove('visible'); if(!albumData.coverUrl) document.getElementById('lpDisc').classList.remove('playing'); }
+function updateNowPlayingCover() { if(albumData.coverUrl){document.getElementById('npCoverImg').src=albumData.coverUrl;document.getElementById('npCoverImg').style.display='block';} }
+
+// ════════════════════════════════════════════════════════
+// 렌더링
+// ════════════════════════════════════════════════════════
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+
+function renderTrackList() {
+  const list = document.getElementById('trackList'), empty = document.getElementById('emptyState');
+  if (tracks.length===0) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.innerHTML = tracks.map((t,i) => `
+    <div class="track-item" id="item_${t.id}">
+      <div class="track-header" onclick="togglePanel('${t.id}')">
+        <div class="track-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="track-info">
+          <div class="track-title">${escHtml(t.title)}</div>
+          ${t.artist?`<div class="track-artist">${escHtml(t.artist)}</div>`:''}
+        </div>
+        <div class="track-actions" onclick="event.stopPropagation()">
+          <button onclick="deleteTrack('${t.id}')" title="삭제"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+        </div>
+      </div>
+      <div class="track-panel" id="panel_${t.id}">
+        <div class="yt-embed"><iframe src="https://www.youtube.com/embed/${t.ytId}?rel=0&modestbranding=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
+        <div class="memo-area">
+          <div class="memo-label">💜 페어와 이 곡의 연결고리</div>
+          <div class="memo-list" id="memoList_${t.id}"></div>
+          <div class="memo-input-row">
+            <textarea id="memoInput_${t.id}" placeholder="이 곡이 어울리는 이유를 적어보세요…"></textarea>
+            <button class="btn btn-primary" onclick="addMemo('${t.id}')" style="flex-shrink:0;height:60px;">남기기</button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+  tracks.forEach(t => {
+    const c = document.getElementById('memoList_'+t.id); if (!c) return;
+    if (t.memos.length===0) { c.innerHTML='<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">아직 메모가 없어요 :)</div>'; return; }
+    c.innerHTML = t.memos.map(m=>`<div class="memo-item">${escHtml(m.text)}<div class="memo-meta">${m.time}</div></div>`).join('');
+  });
+}
+
+function renderAll() {
+  renderTrackList(); renderAllStickers();
+  if (albumData.title) document.getElementById('albumTitle').value = albumData.title;
+  if (albumData.artist) document.getElementById('albumArtist').value = albumData.artist;
+  if (albumData.year) document.getElementById('albumYear').value = albumData.year;
+  if (albumData.desc) document.getElementById('albumDesc').value = albumData.desc;
+  if (albumData.title || albumData.artist) updatePreviewCard();
+  document.getElementById('titleEm').textContent = pageTitle;
+  document.title = pageTitle;
+  if (albumData.coverUrl) {
+    document.getElementById('coverImg').src = albumData.coverUrl;
+    document.getElementById('coverImg').style.display = 'block';
+    document.getElementById('uploadHint').style.display = 'none';
+    document.getElementById('lpDisc').classList.add('playing');
+    document.getElementById('resetCoverBtn').style.display = 'inline-flex';
+  }
+  const savedAccent = currentTheme.accent;
+  document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('active', d.dataset.accent===savedAccent));
+}
+</script>
+</body>
+</html>
