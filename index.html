@@ -377,6 +377,15 @@ footer span { color: var(--accent-dim); }
   >
     🎵 플레이어
   </button>
+
+  <button
+    class="btn btn-ghost"
+    id="closePlayerBtn"
+    onclick="closePlayerMode()"
+    style="display:none"
+  >
+    ✕ 플레이어 닫기
+  </button>
  
 </div>
     <!-- 공유 URL -->
@@ -433,8 +442,8 @@ footer span { color: var(--accent-dim); }
         </div>
       </div>
       <div class="album-info">
-        <div><label>앨범 제목</label><input type="text" id="albumTitle"  placeholder="우리의 봄" maxlength="40"></div>
-        <div><label>아티스트 / 페어 이름</label><input type="text" id="albumArtist" placeholder="민지 & 지수" maxlength="40"></div>
+        <div><label>앨범 제목</label><input type="text" id="albumTitle"  placeholder="Youngblood" maxlength="40"></div>
+        <div><label>아티스트 / 페어 이름</label><input type="text" id="albumArtist" placeholder="윤희 & 소와" maxlength="40"></div>
         <div><label>연도</label><input type="text" id="albumYear" placeholder="2025" maxlength="10"></div>
         <div><label>한 줄 소개</label><textarea id="albumDesc" placeholder="우리가 함께한 계절의 사운드트랙" style="height:70px;resize:none;background:var(--glass);border:1px solid var(--glass-border);border-radius:6px;padding:10px 14px;color:var(--text-main);font-family:'Noto Serif KR',serif;font-size:13px;width:100%;"></textarea></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -520,8 +529,7 @@ let currentAlbumInviteCode = '';
 // ── URL에서 album_id 파라미터 읽기 (공유 링크 지원) ──
 const urlParams = new URLSearchParams(location.search);
 const sharedAlbumId = urlParams.get('album');
-const viewMode = urlParams.get('view');
-const isPlayerMode = viewMode === 'player';
+let isPlayerMode = false; // location.href 리로드 없이 SPA 방식으로 관리
 
 // ════════════════════════════════════════════════════════
 // AUTH
@@ -662,13 +670,7 @@ if (album) {
 
   applyThemeVars(currentTheme);
   renderAll();
-  if(isPlayerMode){
 
-  document.querySelectorAll('section')
-    .forEach(el => el.style.display='none');
-
-  renderPlayerMode();
-}
   // 공유 URL 표시 (오너인 경우)
   if (album && album.owner_id === currentUser.id) {
     const shareUrl = `${location.origin}${location.pathname}?album=${albumId}`;
@@ -686,9 +688,33 @@ function copyShareUrl() {
   });
 }
 function openPlayerMode() {
-  location.href =
-    `${location.pathname}?album=${albumId}&view=player`;
+  isPlayerMode = true;
+  history.pushState({}, '', `${location.pathname}?album=${albumId}&view=player`);
+  document.querySelectorAll('section').forEach(el => el.style.display = 'none');
+  document.getElementById('playerModeView').style.display = 'block';
+  document.getElementById('closePlayerBtn').style.display = 'inline-flex';
+  if (!ytPlayer) {
+    renderPlayerMode();
+  }
 }
+
+function closePlayerMode() {
+  isPlayerMode = false;
+  history.pushState({}, '', `${location.pathname}?album=${albumId}`);
+  document.querySelectorAll('section').forEach(el => el.style.display = '');
+  document.getElementById('playerModeView').style.display = 'none';
+  document.getElementById('closePlayerBtn').style.display = 'none';
+}
+
+// 브라우저 뒤로가기/앞으로가기 처리
+window.addEventListener('popstate', () => {
+  const p = new URLSearchParams(location.search);
+  if (p.get('view') === 'player' && albumId) {
+    openPlayerMode();
+  } else {
+    closePlayerMode();
+  }
+});
 
 async function createNewAlbum(){
 
@@ -1202,15 +1228,15 @@ window.addEventListener('load', () => {
   }
 });
 
-// 탭 복귀 시 재생 상태를 건드리지 않음
+// 탭 복귀 시 재생 상태 유지
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible' && ytPlayer){
-    // 이미 재생 중이면 그대로, PAUSED 상태였으면 재개
-    const state = ytPlayer.getPlayerState?.();
-    if(state === YT.PlayerState.PAUSED){
-      ytPlayer.playVideo();
-    }
-  }
+  if (document.visibilityState !== 'visible') return;
+  if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+  try {
+    const state = ytPlayer.getPlayerState();
+    // PAUSED(2)일 때만 재개. PLAYING(1)이면 절대 건드리지 않음
+    if (state === 2) ytPlayer.playVideo();
+  } catch(e) {}
 });
 let currentTrackIndex = 0;
 let ytPlayer = null;
