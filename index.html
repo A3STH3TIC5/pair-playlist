@@ -980,7 +980,9 @@ window.addEventListener('load', () => {
   }
 });
 let currentTrackIndex = 0;
-
+let ytPlayer = null;
+let repeatAll = true;
+let repeatOne = false;
 function renderPlayerMode() {
 
   const player =
@@ -1093,10 +1095,40 @@ function renderPlayerMode() {
     playTrackFromPlayer(currentTrackIndex);
   }
 }
+function onPlayerStateChange(event){
+
+  if(event.data !== YT.PlayerState.ENDED)
+    return;
+
+  if(currentTrackIndex < tracks.length - 1){
+
+    playTrackFromPlayer(
+      currentTrackIndex + 1
+    );
+
+  }else if(repeatAll){
+
+    playTrackFromPlayer(0);
+
+  }
+
+}
 function playTrackFromPlayer(index){
 
   if(index < 0) return;
-  if(index >= tracks.length) return;
+
+  if(index >= tracks.length){
+
+    if(repeatAll){
+
+      index = 0;
+
+    }else{
+
+      return;
+
+    }
+  }
 
   currentTrackIndex = index;
 
@@ -1118,23 +1150,22 @@ function playTrackFromPlayer(index){
           ${track.artist || ''}
         </p>
 
-        <iframe
-          width="100%"
-          height="500"
-          src="https://www.youtube.com/embed/${track.ytId}?autoplay=1"
-          allow="autoplay"
-          allowfullscreen
+        <div
+          id="youtubePlayer"
           style="
-            border:none;
+            width:100%;
+            height:500px;
             border-radius:12px;
+            overflow:hidden;
           "
-        ></iframe>
+        ></div>
 
         <div style="
           display:flex;
           justify-content:center;
           gap:10px;
           margin-top:16px;
+          flex-wrap:wrap;
         ">
 
           <button
@@ -1142,6 +1173,14 @@ function playTrackFromPlayer(index){
             onclick="playTrackFromPlayer(${index-1})"
           >
             ◀ 이전곡
+          </button>
+
+          <button
+            class="btn btn-ghost"
+            id="repeatBtn"
+            onclick="toggleRepeat()"
+          >
+            🔁 전체반복 ON
           </button>
 
           <button
@@ -1157,9 +1196,24 @@ function playTrackFromPlayer(index){
 
     `;
 
+  ytPlayer = new YT.Player(
+    'youtubePlayer',
+    {
+      videoId: track.ytId,
+
+      playerVars:{
+        autoplay:1
+      },
+
+      events:{
+        onStateChange:onPlayerStateChange
+      }
+    }
+  );
+
   renderPlayerModeTrackState();
-}
-function renderPlayerModeTrackState(){
+
+}function renderPlayerModeTrackState(){
 
   document
     .querySelectorAll('.player-track')
@@ -1171,6 +1225,20 @@ function renderPlayerModeTrackState(){
       );
 
     });
+
+}
+function toggleRepeat(){
+
+  repeatAll = !repeatAll;
+
+  const btn =
+    document.getElementById('repeatBtn');
+
+  if(!btn) return;
+
+  btn.textContent = repeatAll
+    ? '🔁 전체반복 ON'
+    : '🔁 전체반복 OFF';
 
 }
 function renderAlbumList(data){
@@ -1254,5 +1322,6 @@ function closeAlbumList(){
 
 }
 </script>
+<script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
