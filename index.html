@@ -757,7 +757,7 @@ function renderAll() {
   const savedAccent = currentTheme.accent;
   document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('active', d.dataset.accent===savedAccent));
 }
-function toggleMode() {
+    function toggleMode() {
   document.body.classList.toggle('light-mode');
 
   localStorage.setItem(
@@ -769,7 +769,7 @@ function toggleMode() {
 }
 
 window.addEventListener('load', () => {
-  if(localStorage.getItem('themeMode') === 'light'){
+  if (localStorage.getItem('themeMode') === 'light') {
     document.body.classList.add('light-mode');
   }
 });
