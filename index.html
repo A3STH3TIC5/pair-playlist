@@ -347,7 +347,7 @@ footer span { color: var(--accent-dim); }
   </button>
  
   <button
-  class="btn btn-ghost"
+  class="btn btn-primary"
   onclick="renameCurrentAlbum()"
 >
   ✏ 이름 변경
@@ -663,7 +663,7 @@ async function deleteAlbum(id){
   async function renameCurrentAlbum(){
 
   const title = prompt(
-    '새 플레이리스트 이름',
+    '변경 플레이리스트 이름',
     albumData.title || ''
   );
 
