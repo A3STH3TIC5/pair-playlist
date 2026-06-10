@@ -838,44 +838,29 @@ async function showInviteModal(){
   const code = prompt('파트너에게 받은 초대코드를 입력하세요');
   if(!code) return;
 
-  const { data: album, error } = await sb
-    .from('albums')
-    .select('id, owner_id, partner_id, title')
-    .eq('invite_code', code.trim())
-    .maybeSingle();
+  // RLS 우회를 위해 security definer 함수 사용
+  const { data, error } = await sb.rpc('join_by_invite_code', { p_code: code.trim() });
 
-  if(error || !album){
+  if(error){
+    alert('오류가 발생했습니다: ' + error.message);
+    return;
+  }
+
+  if(data.error === 'invalid_code'){
     alert('초대코드가 올바르지 않습니다.\n코드를 다시 확인해주세요.');
     return;
   }
-
-  if(album.owner_id === currentUser.id){
+  if(data.error === 'own_album'){
     alert('본인이 만든 플레이리스트입니다.');
     return;
   }
-
-  if(album.partner_id && album.partner_id !== currentUser.id){
+  if(data.error === 'already_taken'){
     alert('이미 다른 파트너가 연결된 플레이리스트입니다.');
     return;
   }
 
-  if(album.partner_id === currentUser.id){
-    location.href = `${location.pathname}?album=${album.id}`;
-    return;
-  }
-
-  const { error: updateErr } = await sb
-    .from('albums')
-    .update({ partner_id: currentUser.id })
-    .eq('id', album.id);
-
-  if(updateErr){
-    alert('연결 실패: ' + updateErr.message);
-    return;
-  }
-
   alert('플레이리스트에 연결되었습니다!');
-  location.href = `${location.pathname}?album=${album.id}`;
+  location.href = `${location.pathname}?album=${data.album_id}`;
 }
 let saveTimer = null;
 function queueSave(){
