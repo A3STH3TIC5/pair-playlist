@@ -835,44 +835,47 @@ async function deleteAlbum(id){
   
 async function showInviteModal(){
 
-  const code = prompt(
-    '파트너에게 받은 초대코드를 입력하세요'
-  );
-
+  const code = prompt('파트너에게 받은 초대코드를 입력하세요');
   if(!code) return;
 
-  const { data: album } =
-  await sb
+  const { data: album, error } = await sb
     .from('albums')
-    .select('*')
-    .eq('invite_code', code)
-    .single();
+    .select('id, owner_id, partner_id, title')
+    .eq('invite_code', code.trim())
+    .maybeSingle();
 
-if(!album){
+  if(error || !album){
+    alert('초대코드가 올바르지 않습니다.\n코드를 다시 확인해주세요.');
+    return;
+  }
 
-  alert('초대코드가 올바르지 않습니다.');
-  return;
+  if(album.owner_id === currentUser.id){
+    alert('본인이 만든 플레이리스트입니다.');
+    return;
+  }
 
-}
+  if(album.partner_id && album.partner_id !== currentUser.id){
+    alert('이미 다른 파트너가 연결된 플레이리스트입니다.');
+    return;
+  }
 
-if(album.partner_id){
+  if(album.partner_id === currentUser.id){
+    location.href = `${location.pathname}?album=${album.id}`;
+    return;
+  }
 
-  alert('이미 연결된 플레이리스트입니다.');
-  return;
+  const { error: updateErr } = await sb
+    .from('albums')
+    .update({ partner_id: currentUser.id })
+    .eq('id', album.id);
 
-}
+  if(updateErr){
+    alert('연결 실패: ' + updateErr.message);
+    return;
+  }
 
-await sb
-  .from('albums')
-  .update({
-    partner_id: currentUser.id
-  })
-  .eq('id', album.id);
-
-alert('플레이리스트에 연결되었습니다.');
-
-location.href =
-  `${location.pathname}?album=${album.id}`;
+  alert('플레이리스트에 연결되었습니다!');
+  location.href = `${location.pathname}?album=${album.id}`;
 }
 let saveTimer = null;
 function queueSave(){
@@ -1524,24 +1527,27 @@ if(cached.length){
     .style.display = 'flex';
 }
   
-  const { data } = await sb
-  .from('albums')
-  .select('id,title,created_at,owner_id,partner_id')
-  .or(
-    `owner_id.eq.${currentUser.id},partner_id.eq.${currentUser.id}`
-  )
-  .order('created_at', {
-    ascending:false
-  });
+  const { data, error: listErr } = await sb
+    .from('albums')
+    .select('id,title,created_at,owner_id,partner_id')
+    .or(`owner_id.eq.${currentUser.id},partner_id.eq.${currentUser.id}`)
+    .order('created_at', { ascending: false });
+
+  if(listErr) console.error('앨범 목록 오류:', listErr.message);
   
   const list =
     document.getElementById('albumList');
 
- renderAlbumList(data);
+  if(data && data.length > 0){
+    renderAlbumList(data);
+    localStorage.setItem('albumCache', JSON.stringify(data));
+  } else {
+    // data가 없거나 비어있으면 캐시도 비우고 빈 목록 표시
+    localStorage.removeItem('albumCache');
+    renderAlbumList([]);
+  }
 
-  document
-    .getElementById('albumModal')
-    .style.display='flex';
+  document.getElementById('albumModal').style.display = 'flex';
 }
 function closeAlbumList(){
 
