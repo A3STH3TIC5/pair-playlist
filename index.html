@@ -578,12 +578,16 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 function showMyInviteCode(){
-
-  alert(
-    '초대코드\n\n' +
-    currentAlbumInviteCode
-  );
-
+  if(!currentAlbumInviteCode){
+    alert('초대코드를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
+    return;
+  }
+  navigator.clipboard.writeText(currentAlbumInviteCode)
+    .then(() => alert('초대코드가 복사되었습니다!\n\n' + currentAlbumInviteCode))
+    .catch(() => {
+      // 클립보드 API 불가 환경(모바일 등) 대비 — 직접 선택 가능하도록 prompt 사용
+      prompt('아래 코드를 직접 복사하세요:', currentAlbumInviteCode);
+    });
 }
 function showApp() {
   document.getElementById('authWall').style.display = 'none';
@@ -707,6 +711,13 @@ function closePlayerMode() {
   document.querySelectorAll('section').forEach(el => el.style.display = '');
   document.getElementById('playerModeView').style.display = 'none';
   document.getElementById('closePlayerBtn').style.display = 'none';
+
+  // YT.Player 인스턴스 파기 — 다음에 플레이어를 열 때 깨끗하게 재생성
+  if(ytPlayer && typeof ytPlayer.destroy === 'function'){
+    try { ytPlayer.destroy(); } catch(e) {}
+  }
+  ytPlayer = null;
+  currentTrackIndex = 0; // 닫으면 재생 위치도 초기화
 }
 
 // 브라우저 뒤로가기/앞으로가기 처리
@@ -800,44 +811,53 @@ async function deleteAlbum(id){
   
 async function showInviteModal(){
 
-  const code = prompt(
-    '파트너에게 받은 초대코드를 입력하세요'
-  );
-
+  const code = prompt('파트너에게 받은 초대코드를 입력하세요');
   if(!code) return;
 
-  const { data: album } =
-  await sb
+  // invite_code 조회는 RLS 정책에서 별도로 허용해야 합니다.
+  // Supabase SQL Editor에서 아래 정책을 추가하세요:
+  //   create policy "albums_invite_lookup" on public.albums
+  //     for select using (invite_code is not null);
+  const { data: album, error } = await sb
     .from('albums')
-    .select('*')
-    .eq('invite_code', code)
-    .single();
+    .select('id, owner_id, partner_id, invite_code, title')
+    .eq('invite_code', code.trim())
+    .maybeSingle();
 
-if(!album){
+  if(error || !album){
+    alert(
+      '초대코드가 올바르지 않습니다.\n' +
+      '코드를 다시 확인하거나, 초대한 사람에게 재발급을 요청하세요.\n\n' +
+      (error ? '오류: ' + error.message : '')
+    );
+    return;
+  }
 
-  alert('초대코드가 올바르지 않습니다.');
-  return;
+  if(album.owner_id === currentUser.id){
+    alert('본인이 만든 플레이리스트입니다.');
+    return;
+  }
 
-}
+  if(album.partner_id && album.partner_id !== currentUser.id){
+    alert('이미 다른 파트너가 연결된 플레이리스트입니다.');
+    return;
+  }
 
-if(album.partner_id){
+  if(album.partner_id === currentUser.id){
+    // 이미 연결돼 있으면 바로 이동
+    location.href = `${location.pathname}?album=${album.id}`;
+    return;
+  }
 
-  alert('이미 연결된 플레이리스트입니다.');
-  return;
+  const { error: updateErr } = await sb
+    .from('albums')
+    .update({ partner_id: currentUser.id })
+    .eq('id', album.id);
 
-}
+  if(updateErr){ alert('연결 실패: ' + updateErr.message); return; }
 
-await sb
-  .from('albums')
-  .update({
-    partner_id: currentUser.id
-  })
-  .eq('id', album.id);
-
-alert('플레이리스트에 연결되었습니다.');
-
-location.href =
-  `${location.pathname}?album=${album.id}`;
+  alert('플레이리스트에 연결되었습니다!');
+  location.href = `${location.pathname}?album=${album.id}`;
 }
 let saveTimer = null;
 function queueSave(){
@@ -1431,42 +1451,51 @@ function toggleRepeat(){
 }
 function renderAlbumList(data){
 
-  const list =
-    document.getElementById('albumList');
-
+  const list = document.getElementById('albumList');
   list.innerHTML = '';
 
   data.forEach(album => {
+    const isOwner = album.owner_id === currentUser.id;
+    const actionBtn = isOwner
+      ? `<button title="삭제" onclick="event.stopPropagation();deleteAlbum('${album.id}')">🗑</button>`
+      : `<button title="나가기" onclick="event.stopPropagation();leaveAlbum('${album.id}')">🚪</button>`;
 
     list.innerHTML += `
       <div class="album-row">
-
         <span
-          onclick="
-            location.href=
-            '${location.pathname}?album=${album.id}'
-          "
-          style="
-            flex:1;
-            cursor:pointer;
-          "
+          onclick="location.href='${location.pathname}?album=${album.id}'"
+          style="flex:1;cursor:pointer;"
         >
-          📀 ${album.title}
+          ${isOwner ? '📀' : '🤝'} ${album.title}
         </span>
-
-        <button
-          onclick="
-            event.stopPropagation();
-            deleteAlbum('${album.id}');
-          "
-        >
-          🗑
-        </button>
-
+        ${actionBtn}
       </div>
     `;
   });
+}
 
+async function leaveAlbum(id){
+  if(!confirm('이 플레이리스트에서 나가시겠어요?\n나간 후에는 다시 초대코드로 입장해야 합니다.')) return;
+
+  const { error } = await sb
+    .from('albums')
+    .update({ partner_id: null })
+    .eq('id', id)
+    .eq('partner_id', currentUser.id); // 본인이 파트너인 경우만
+
+  if(error){ alert(error.message); return; }
+
+  // 캐시 갱신
+  const cached = JSON.parse(localStorage.getItem('albumCache') || '[]');
+  localStorage.setItem('albumCache', JSON.stringify(cached.filter(a => a.id !== id)));
+
+  alert('플레이리스트에서 나왔습니다.');
+  closeAlbumList();
+
+  // 현재 보고 있던 앨범이 나간 앨범이면 홈으로
+  if(albumId === id){
+    location.href = location.pathname;
+  }
 }
 
 async function openAlbumList(){
