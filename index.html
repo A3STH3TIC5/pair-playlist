@@ -839,28 +839,35 @@ async function showInviteModal(){
   if(!code) return;
 
   // RLS 우회를 위해 security definer 함수 사용
-  const { data, error } = await sb.rpc('join_by_invite_code', { p_code: code.trim() });
+  const { data: rawData, error } = await sb.rpc('join_by_invite_code', { p_code: code.trim() });
 
   if(error){
     alert('오류가 발생했습니다: ' + error.message);
     return;
   }
 
-  if(data.error === 'invalid_code'){
+  // rpc가 json을 문자열로 반환하는 경우 대비
+  const result = (typeof rawData === 'string') ? JSON.parse(rawData) : rawData;
+
+  if(result.error === 'invalid_code'){
     alert('초대코드가 올바르지 않습니다.\n코드를 다시 확인해주세요.');
     return;
   }
-  if(data.error === 'own_album'){
+  if(result.error === 'own_album'){
     alert('본인이 만든 플레이리스트입니다.');
     return;
   }
-  if(data.error === 'already_taken'){
+  if(result.error === 'already_taken'){
     alert('이미 다른 파트너가 연결된 플레이리스트입니다.');
+    return;
+  }
+  if(!result.album_id){
+    alert('알 수 없는 오류가 발생했습니다. (result: ' + JSON.stringify(result) + ')');
     return;
   }
 
   alert('플레이리스트에 연결되었습니다!');
-  location.href = `${location.pathname}?album=${data.album_id}`;
+  location.href = `${location.pathname}?album=${result.album_id}`;
 }
 let saveTimer = null;
 function queueSave(){
