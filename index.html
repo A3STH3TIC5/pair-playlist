@@ -1498,25 +1498,36 @@ function renderAlbumList(data){
 }
 
 async function leaveAlbum(id){
-  if(!confirm('이 플레이리스트에서 나가시겠어요?\n나간 후에는 다시 초대코드로 입장해야 합니다.')) return;
 
-  const { error } = await sb
-    .from('albums')
-    .update({ partner_id: null })
-    .eq('id', id)
-    .eq('partner_id', currentUser.id);
+  if(
+    !confirm(
+      '이 플레이리스트에서 나가시겠어요?\n나간 후에는 다시 초대코드로 입장해야 합니다.'
+    )
+  ) return;
 
-  if(error){ alert(error.message); return; }
+  const { error } =
+    await sb.rpc(
+      'leave_album',
+      {
+        p_album_id: id
+      }
+    );
+
+  if(error){
+    alert(error.message);
+    return;
+  }
 
   localStorage.removeItem('albumCache');
+
   alert('플레이리스트에서 나왔습니다.');
+
   closeAlbumList();
 
   if(albumId === id){
     location.href = location.pathname;
   }
 }
-
 async function openAlbumList(){
 
   const cached =
