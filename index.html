@@ -742,6 +742,13 @@ function closePlayerMode() {
   document.querySelectorAll('section').forEach(el => el.style.display = '');
   document.getElementById('playerModeView').style.display = 'none';
   document.getElementById('closePlayerBtn').style.display = 'none';
+
+  // YT.Player 인스턴스 완전 파기 — 다음에 열 때 깨끗하게 재생성
+  if(ytPlayer && typeof ytPlayer.destroy === 'function'){
+    try { ytPlayer.destroy(); } catch(e) {}
+  }
+  ytPlayer = null;
+  currentTrackIndex = 0;
 }
 
 // 브라우저 뒤로가기/앞으로가기 처리
@@ -1465,42 +1472,49 @@ function toggleRepeat(){
 }
 function renderAlbumList(data){
 
-  const list =
-    document.getElementById('albumList');
-
+  const list = document.getElementById('albumList');
   list.innerHTML = '';
 
+  if(!data || data.length === 0){
+    list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-dim);font-size:13px;">플레이리스트가 없어요</div>';
+    return;
+  }
+
   data.forEach(album => {
+    const isOwner = album.owner_id === currentUser.id;
+    const actionBtn = isOwner
+      ? `<button title="삭제" onclick="event.stopPropagation();deleteAlbum('${album.id}')">🗑</button>`
+      : `<button title="나가기" onclick="event.stopPropagation();leaveAlbum('${album.id}')">🚪</button>`;
 
     list.innerHTML += `
       <div class="album-row">
-
-        <span
-          onclick="
-            location.href=
-            '${location.pathname}?album=${album.id}'
-          "
-          style="
-            flex:1;
-            cursor:pointer;
-          "
-        >
-          📀 ${album.title}
+        <span onclick="location.href='${location.pathname}?album=${album.id}'" style="flex:1;cursor:pointer;">
+          ${isOwner ? '📀' : '🤝'} ${album.title}
         </span>
-
-        <button
-          onclick="
-            event.stopPropagation();
-            deleteAlbum('${album.id}');
-          "
-        >
-          🗑
-        </button>
-
+        ${actionBtn}
       </div>
     `;
   });
+}
 
+async function leaveAlbum(id){
+  if(!confirm('이 플레이리스트에서 나가시겠어요?\n나간 후에는 다시 초대코드로 입장해야 합니다.')) return;
+
+  const { error } = await sb
+    .from('albums')
+    .update({ partner_id: null })
+    .eq('id', id)
+    .eq('partner_id', currentUser.id);
+
+  if(error){ alert(error.message); return; }
+
+  localStorage.removeItem('albumCache');
+  alert('플레이리스트에서 나왔습니다.');
+  closeAlbumList();
+
+  if(albumId === id){
+    location.href = location.pathname;
+  }
 }
 
 async function openAlbumList(){
