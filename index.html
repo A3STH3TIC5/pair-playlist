@@ -580,12 +580,16 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 function showMyInviteCode(){
-
-  alert(
-    '초대코드\n\n' +
-    currentAlbumInviteCode
-  );
-
+  if(!currentAlbumInviteCode){
+    alert('초대코드를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
+    return;
+  }
+  navigator.clipboard.writeText(currentAlbumInviteCode)
+    .then(() => alert('초대코드가 복사되었습니다!\n\n' + currentAlbumInviteCode))
+    .catch(() => {
+      // 클립보드 API 불가 환경(모바일 등) 대비
+      prompt('아래 코드를 직접 복사하세요:', currentAlbumInviteCode);
+    });
 }
 function showApp() {
   document.getElementById('authWall').style.display = 'none';
@@ -707,9 +711,9 @@ if (album) {
     const myCodeBtn = document.getElementById('myCodeBtn');
     if (myCodeBtn) myCodeBtn.style.display = currentAlbumIsOwner ? '' : 'none';
 
-    // 파트너만 보이는 버튼 (코드 입력 — 오너는 불필요)
+    // 코드 입력은 오너·파트너 모두 사용 가능 (오너도 다른 앨범 파트너로 들어갈 수 있음)
     const codeInputBtn = document.getElementById('codeInputBtn');
-    if (codeInputBtn) codeInputBtn.style.display = currentAlbumIsOwner ? 'none' : '';
+    if (codeInputBtn) codeInputBtn.style.display = '';
   }
 }
 
