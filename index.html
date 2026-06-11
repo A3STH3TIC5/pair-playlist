@@ -692,13 +692,79 @@ async function signOut() {
 
 sb.auth.onAuthStateChange(async (event, session) => {
   // TOKEN_REFRESHED: 탭 복귀 시 Supabase가 세션을 갱신하며 재발화 → 무시
-  // SIGNED_IN 최초 1회 / 이미 초기화됐으면 어떤 이벤트든 차단
-  if (!session?.user) return;
   if (event === 'TOKEN_REFRESHED') return;
   if (currentUser) return;
-  currentUser = session.user;
-  showApp();
+
+  if (session?.user) {
+    // 로그인 상태 → 일반 앱 초기화
+    currentUser = session.user;
+    showApp();
+  } else {
+    // 비로그인 상태 → 공개 링크인 경우만 초기화
+    const params = new URLSearchParams(location.search);
+    if (params.get('public') === '1' && params.get('album')) {
+      loadPublicView(params.get('album'));
+    }
+  }
 });
+
+// 비로그인 공개 뷰 초기화 — RLS is_public=true 앨범만 조회 가능
+async function loadPublicView(aid) {
+  albumId = aid;
+
+  // 앨범 정보 로드
+  const { data: album } = await sb.from('albums')
+    .select('*').eq('id', aid).eq('is_public', true).maybeSingle();
+  if (!album) {
+    document.body.innerHTML = '<div style="text-align:center;padding:80px;color:#888;font-family:sans-serif;">이 플레이리스트는 공개되지 않았거나 존재하지 않습니다.</div>';
+    return;
+  }
+
+  // 앨범 데이터 세팅
+  albumData = { title: album.title || '', artist: album.artist || '', year: album.year || '', desc: album.desc || '', coverUrl: album.cover_url || '' };
+  pageTitle = album.page_title || album.title || 'Playlist';
+  try { currentTheme = album.theme ? JSON.parse(album.theme) : currentTheme; } catch(e) {}
+  try {
+    const raw = album.cover_slides;
+    coverSlides = Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : []);
+  } catch(e) { coverSlides = []; }
+  if (coverSlides.length === 0 && albumData.coverUrl) coverSlides = [{ url: albumData.coverUrl }];
+
+  // 트랙 로드
+  const { data: trackData } = await sb.from('tracks')
+    .select('*, memos(*)')
+    .eq('album_id', aid)
+    .order('position', { ascending: true });
+  tracks = (trackData || []).map(t => ({
+    id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id,
+    memos: (t.memos || []).map(m => ({ id: m.id, text: m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR', { month:'short', day:'numeric' }) }))
+  }));
+
+  // 방명록·배너 로드
+  await loadGuestbook();
+  await loadBanners();
+
+  // 테마 적용
+  applyThemeVars(currentTheme);
+
+  // 페이지 제목
+  document.getElementById('titleEm').textContent = pageTitle;
+  document.title = pageTitle;
+
+  // 슬라이드 렌더
+  slideIndex = 0;
+  renderSlides();
+
+  // 앱 영역 표시
+  document.getElementById('authWall').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+
+  // 공개 뷰 UI 처리 (편집 버튼 숨김)
+  initPublicView();
+
+  // 플레이어 모드로 진입
+  openPlayerMode();
+}
 
 function showMyInviteCode(){
   if(!currentAlbumInviteCode){
@@ -892,10 +958,11 @@ function openPlayerMode() {
   // public=1이면 닫기 버튼 숨김 (나갈 수 없게)
   const closeBtn = document.getElementById('closePlayerBtn');
   if (isPublic) {
-    closeBtn.style.display = 'none';
-    document.getElementById('topBar').style.display = 'none';
+    if (closeBtn) closeBtn.style.display = 'none';
+    const topBar = document.getElementById('topBar');
+    if (topBar) topBar.style.display = 'none';
   } else {
-    closeBtn.style.display = 'inline-flex';
+    if (closeBtn) closeBtn.style.display = 'inline-flex';
   }
   if (!ytPlayer) {
     renderPlayerMode();
@@ -1942,9 +2009,10 @@ function initPublicView() {
   document.getElementById('topBar').style.display = 'none';
   const hideIds = ['coverUpload','resetCoverBtn','albumTitle','albumArtist','albumYear','albumDesc','shareBar'];
   hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; });
-  document.querySelectorAll('.add-track-form, .album-toolbar, .theme-bar, .track-actions, .memo-input-row, .guestbook-form .guestbook-submit-row, .banner-add-form').forEach(el => { if(el) el.style.display='none'; });
+  document.querySelectorAll('.add-track-form, .album-toolbar, .theme-bar, .track-actions, .memo-input-row, .banner-add-form').forEach(el => { if(el) el.style.display='none'; });
+  // 방명록 제출 버튼 행만 숨김 (방명록 조회는 허용)
+  document.querySelectorAll('.guestbook-submit-row').forEach(el => { if(el) el.style.display='none'; });
 
-  // 플레이어 모드로 자동 진입 (이미 openPlayerMode가 호출되므로 여기선 플래그만)
   window._isPublicView = true;
 }
 
