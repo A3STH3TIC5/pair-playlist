@@ -860,6 +860,7 @@ if (album) {
 
   // 방명록·배너 로드
   await loadGuestbook();
+  renderGuestbook();       // 메인 방명록 렌더
   await loadBanners();
 
   // 공개 뷰 모드 처리
@@ -1900,9 +1901,11 @@ async function addPlayerGuestbook() {
   if (error) { alert('오류: ' + error.message); return; }
   document.getElementById('playerGbNick').value = '';
   document.getElementById('playerGbMsg').value  = '';
-  await loadGuestbook();          // 공통 배열 갱신
-  renderPlayerGuestbook();        // 플레이어 내 목록 갱신
-  renderGuestbook();              // 메인 방명록도 동기화
+  await loadGuestbook();          // 공통 배열 갱신 (자동렌더 없음)
+  renderPlayerGuestbook();        // 플레이어 방명록 갱신
+  // 메인 guestbookList는 플레이어 모드에서 display:none이지만 DOM은 존재 — 안전하게 렌더
+  const mainList = document.getElementById('guestbookList');
+  if (mainList) renderGuestbook();
 }
 
 // ════════════════════════════════════════════════════════
@@ -1955,7 +1958,7 @@ async function loadGuestbook() {
     .select('*').eq('album_id', albumId)
     .order('created_at', { ascending: false });
   guestbookEntries = data || [];
-  renderGuestbook();
+  // 자동 렌더 제거 — 호출부에서 필요한 것만 명시적으로 렌더
 }
 
 function renderGuestbook() {
@@ -1989,12 +1992,16 @@ async function addGuestbook() {
   document.getElementById('gbNick').value = '';
   document.getElementById('gbMsg').value  = '';
   await loadGuestbook();
+  renderGuestbook();
+  renderPlayerGuestbook(); // 플레이어도 동기화
 }
 
 async function deleteGuestbook(id) {
   if (!confirm('방명록을 삭제할까요?')) return;
   await sb.from('guestbook').delete().eq('id', id);
   await loadGuestbook();
+  renderGuestbook();
+  renderPlayerGuestbook();
 }
 
 // ════════════════════════════════════════════════════════
