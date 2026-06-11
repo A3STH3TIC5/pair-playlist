@@ -301,6 +301,57 @@ footer span { color: var(--accent-dim); }
   width: 100% !important;
   height: 100% !important;
 }
+
+/* ── 커버 슬라이드 ── */
+.slide-stage { position:relative; width:100%; aspect-ratio:1; }
+.slide-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; opacity:0; transition:opacity 0.6s; }
+.slide-img.active { opacity:1; }
+.slide-dots { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); display:flex; gap:5px; }
+.slide-dot { width:6px; height:6px; border-radius:50%; background:var(--glass-border); cursor:pointer; transition:background 0.2s; }
+.slide-dot.active { background:var(--accent); }
+.slide-add-btn { position:absolute; bottom:6px; right:6px; background:var(--accent); border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#1a1428; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,0.4); z-index:5; }
+
+/* ── 방명록 ── */
+.guestbook-list { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+.guestbook-item { background:var(--glass); border:1px solid var(--glass-border); border-radius:10px; padding:12px 14px; }
+.guestbook-nick { font-size:12px; color:var(--accent); font-weight:600; margin-bottom:4px; }
+.guestbook-msg { font-size:13px; color:var(--text-main); line-height:1.6; }
+.guestbook-meta { font-size:10px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between; }
+.guestbook-form { display:flex; flex-direction:column; gap:8px; }
+.guestbook-form input, .guestbook-form textarea {
+  background:rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius:6px;
+  padding:9px 12px; color:var(--text-main); font-family:'Noto Sans KR',sans-serif; font-size:13px; resize:none;
+}
+.guestbook-form input:focus, .guestbook-form textarea:focus { outline:none; border-color:var(--accent-dim); }
+.guestbook-form input::placeholder, .guestbook-form textarea::placeholder { color:var(--text-dim); opacity:0.6; }
+
+/* ── 배너 ── */
+.banner-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
+.banner-card {
+  background:var(--glass); border:1px solid var(--glass-border); border-radius:12px;
+  padding:14px; cursor:pointer; transition:border-color 0.2s, transform 0.15s; position:relative;
+  text-decoration:none; display:block;
+}
+.banner-card:hover { border-color:var(--accent-dim); transform:translateY(-2px); }
+.banner-card-title { font-family:'Noto Serif KR',serif; font-size:14px; color:var(--text-main); margin-bottom:4px; }
+.banner-card-desc { font-size:11px; color:var(--text-dim); line-height:1.5; }
+.banner-card-del { position:absolute; top:6px; right:6px; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:12px; opacity:0; transition:opacity 0.2s; }
+.banner-card:hover .banner-card-del { opacity:1; }
+.banner-add-form { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.banner-add-form input { background:rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius:6px; padding:9px 12px; color:var(--text-main); font-family:'Noto Sans KR',sans-serif; font-size:13px; }
+.banner-add-form input:focus { outline:none; border-color:var(--accent-dim); }
+.banner-add-form input::placeholder { color:var(--text-dim); opacity:0.6; }
+.banner-add-form .span-full { grid-column:1/-1; }
+
+/* ── 공개 뷰 오버레이 ── */
+.public-badge { display:inline-flex; align-items:center; gap:5px; background:var(--glass); border:1px solid var(--glass-border); border-radius:20px; padding:3px 10px; font-size:11px; color:var(--accent-dim); margin-left:8px; vertical-align:middle; }
+.public-toggle-wrap { display:flex; align-items:center; gap:8px; margin-top:8px; justify-content:center; font-size:12px; color:var(--text-dim); }
+.toggle-switch { position:relative; width:36px; height:20px; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; background:var(--glass-border); border-radius:20px; cursor:pointer; transition:0.3s; }
+.toggle-slider:before { content:''; position:absolute; width:14px; height:14px; left:3px; bottom:3px; background:white; border-radius:50%; transition:0.3s; }
+.toggle-switch input:checked + .toggle-slider { background:var(--accent); }
+.toggle-switch input:checked + .toggle-slider:before { transform:translateX(16px); }
 </style>
 </head>
 <body>
@@ -409,6 +460,15 @@ footer span { color: var(--accent-dim); }
 >
   🎟 내 코드
 </button>
+      <!-- 공개 토글 -->
+      <div class="public-toggle-wrap" id="publicToggleWrap" style="display:none">
+        <span>공개 링크</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="publicToggle" onchange="togglePublic(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+        <span id="publicToggleLabel" style="color:var(--text-dim);">비공개</span>
+      </div>
     </div>
 
     <!-- 테마 -->
@@ -433,15 +493,20 @@ footer span { color: var(--accent-dim); }
       <div class="lp-stage">
         <div class="lp-disc" id="lpDisc">
           <div class="album-cover" id="albumCover">
-            <input type="file" accept="image/*" id="coverUpload">
-            <div class="upload-hint" id="uploadHint">
+            <input type="file" accept="image/*" id="coverUpload" style="display:none">
+            <div class="upload-hint" id="uploadHint" onclick="document.getElementById('coverUpload').click()" style="cursor:pointer">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12l4-4 4 4"/></svg>
               <span>일러스트 업로드</span>
             </div>
-            <img id="coverImg" src="" alt="" style="display:none">
+            <!-- 슬라이드 이미지들 -->
+            <div id="slideContainer"></div>
           </div>
           <div class="lp-hole"></div>
         </div>
+        <!-- 슬라이드 도트 -->
+        <div class="slide-dots" id="slideDots"></div>
+        <!-- 슬라이드 추가 버튼 (커버 있을 때만 표시) -->
+        <button class="slide-add-btn" id="slideAddBtn" style="display:none" title="이미지 추가" onclick="document.getElementById('coverUpload').click()">＋</button>
       </div>
       <div class="album-info">
         <div><label>앨범 제목</label><input type="text" id="albumTitle"  placeholder="Youngblood" maxlength="40"></div>
@@ -483,6 +548,44 @@ footer span { color: var(--accent-dim); }
   </section>
 
   <div id="playerModeView" style="display:none"></div>
+
+  <!-- 배너 교환 섹션 -->
+  <section id="bannerSection">
+    <div class="section-label">추천 앨범 & 배너</div>
+    <div class="banner-grid" id="bannerGrid"></div>
+    <div class="banner-add-form" id="bannerForm">
+      <div><input type="text" id="bannerTitle" placeholder="앨범/링크 제목" maxlength="40"></div>
+      <div><input type="text" id="bannerUrl" placeholder="https://..." maxlength="200"></div>
+      <div class="span-full"><input type="text" id="bannerDesc" placeholder="한 줄 소개 (선택)" maxlength="80"></div>
+      <div class="span-full" style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="addBanner()">배너 추가</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 방명록 섹션 -->
+  <section id="guestbookSection">
+    <div class="section-label">방명록</div>
+    <div class="guestbook-list" id="guestbookList"></div>
+    <div class="guestbook-form">
+      <input type="text" id="gbNick" placeholder="닉네임" maxlength="20">
+      <textarea id="gbMsg" placeholder="방명록을 남겨보세요…" style="height:70px"></textarea>
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="addGuestbook()">남기기</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 공개 링크 섹션 -->
+  <section id="publicLinkSection" style="display:none">
+    <div class="section-label">공개 공유 링크</div>
+    <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;padding:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span id="publicLinkUrl" style="flex:1;font-size:12px;color:var(--text-dim);word-break:break-all;"></span>
+      <button class="btn btn-ghost" onclick="copyPublicLink()">복사</button>
+    </div>
+    <p style="margin-top:8px;font-size:11px;color:var(--text-dim);">이 링크로 접속하면 로그인 없이 트랙 목록과 플레이어를 볼 수 있어요.</p>
+  </section>
+
   <footer><span>♥</span> 우리의 페어를 위한 플레이리스트</footer>
 </div>
 
@@ -701,20 +804,48 @@ if (album) {
   // 오너 여부 설정
   currentAlbumIsOwner = !!(album && album.owner_id === currentUser.id);
 
-  // shareBar: 오너·파트너 모두 표시, 버튼 구성만 다르게
+  // shareBar: 오너·파트너 모두 표시
   if (album) {
     const shareUrl = `${location.origin}${location.pathname}?album=${albumId}`;
     document.getElementById('shareUrl').textContent = shareUrl;
     document.getElementById('shareBar').style.display = 'flex';
-
-    // 오너만 보이는 버튼 (내 코드 보기)
     const myCodeBtn = document.getElementById('myCodeBtn');
     if (myCodeBtn) myCodeBtn.style.display = currentAlbumIsOwner ? '' : 'none';
-
-    // 코드 입력은 오너·파트너 모두 사용 가능 (오너도 다른 앨범 파트너로 들어갈 수 있음)
     const codeInputBtn = document.getElementById('codeInputBtn');
     if (codeInputBtn) codeInputBtn.style.display = '';
+
+    // 공개 토글 (오너·파트너만)
+    const toggleWrap = document.getElementById('publicToggleWrap');
+    if (toggleWrap) {
+      toggleWrap.style.display = 'flex';
+      const isPublic = album.is_public || false;
+      document.getElementById('publicToggle').checked = isPublic;
+      document.getElementById('publicToggleLabel').textContent = isPublic ? '공개' : '비공개';
+      document.getElementById('publicToggleLabel').style.color = isPublic ? 'var(--accent)' : 'var(--text-dim)';
+      if (isPublic) {
+        document.getElementById('publicLinkSection').style.display = '';
+        document.getElementById('publicLinkUrl').textContent = `${location.origin}${location.pathname}?album=${albumId}&view=public`;
+      }
+    }
+
+    // 커버 슬라이드 복원
+    try {
+      const raw = album.cover_slides;
+      coverSlides = Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : []);
+    } catch(e) { coverSlides = []; }
+    if (coverSlides.length === 0 && albumData.coverUrl) {
+      coverSlides = [{ url: albumData.coverUrl }];
+    }
+    slideIndex = 0;
+    renderSlides();
   }
+
+  // 방명록·배너 로드
+  await loadGuestbook();
+  await loadBanners();
+
+  // 공개 뷰 모드 처리
+  initPublicView();
 }
 
 function copyShareUrl() {
@@ -890,9 +1021,10 @@ function queueSave(){
 }
 async function saveAlbumToDB() {
   if (!albumId) return;
+  const mainCover = coverSlides.length > 0 ? coverSlides[0].url : (albumData.coverUrl || '');
   await sb.from('albums').update({
     title: albumData.title, artist: albumData.artist, year: albumData.year,
-    desc: albumData.desc, cover_url: albumData.coverUrl,
+    desc: albumData.desc, cover_url: mainCover,
     page_title: pageTitle, theme: JSON.stringify(currentTheme)
   }).eq('id', albumId);
 }
@@ -1002,14 +1134,13 @@ document.getElementById('coverUpload')
 });
 function resetCover() {
   albumData.coverUrl = '';
-  document.getElementById('coverImg').src = '';
-  document.getElementById('coverImg').style.display = 'none';
-  document.getElementById('uploadHint').style.display = 'flex';
-  document.getElementById('lpDisc').classList.remove('playing');
+  coverSlides = [];
+  slideIndex  = 0;
+  clearInterval(slideTimer);
+  renderSlides();
   document.getElementById('resetCoverBtn').style.display = 'none';
   document.getElementById('albumCardPreview').classList.remove('visible');
-
-  saveAlbumToDB();
+  sb.from('albums').update({ cover_slides: '[]', cover_url: '' }).eq('id', albumId);
 }
 function saveAlbumInfo() {
   albumData.title =
@@ -1245,13 +1376,8 @@ function renderAll() {
   if (albumData.title || albumData.artist) updatePreviewCard();
   document.getElementById('titleEm').textContent = pageTitle;
   document.title = pageTitle;
-  if (albumData.coverUrl) {
-    document.getElementById('coverImg').src = albumData.coverUrl;
-    document.getElementById('coverImg').style.display = 'block';
-    document.getElementById('uploadHint').style.display = 'none';
-    document.getElementById('lpDisc').classList.add('playing');
-    document.getElementById('resetCoverBtn').style.display = 'inline-flex';
-  }
+  // 커버는 renderSlides()가 처리
+  if (coverSlides && coverSlides.length > 0) renderSlides();
   const savedAccent = currentTheme.accent;
   document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('active', d.dataset.accent===savedAccent));
 }
@@ -1498,36 +1624,25 @@ function renderAlbumList(data){
 }
 
 async function leaveAlbum(id){
+  if(!confirm('이 플레이리스트에서 나가시겠어요?\n나간 후에는 다시 초대코드로 입장해야 합니다.')) return;
 
-  if(
-    !confirm(
-      '이 플레이리스트에서 나가시겠어요?\n나간 후에는 다시 초대코드로 입장해야 합니다.'
-    )
-  ) return;
+  const { error } = await sb
+    .from('albums')
+    .update({ partner_id: null })
+    .eq('id', id)
+    .eq('partner_id', currentUser.id);
 
-  const { error } =
-    await sb.rpc(
-      'leave_album',
-      {
-        p_album_id: id
-      }
-    );
-
-  if(error){
-    alert(error.message);
-    return;
-  }
+  if(error){ alert(error.message); return; }
 
   localStorage.removeItem('albumCache');
-
   alert('플레이리스트에서 나왔습니다.');
-
   closeAlbumList();
 
   if(albumId === id){
     location.href = location.pathname;
   }
 }
+
 async function openAlbumList(){
 
   const cached =
@@ -1573,6 +1688,225 @@ function closeAlbumList(){
     .style.display='none';
 
 }
+
+// ════════════════════════════════════════════════════════
+// 커버 슬라이드
+// ════════════════════════════════════════════════════════
+let coverSlides = [];      // [{url}]
+let slideIndex  = 0;
+let slideTimer  = null;
+
+function renderSlides() {
+  const container = document.getElementById('slideContainer');
+  const dots      = document.getElementById('slideDots');
+  const hint      = document.getElementById('uploadHint');
+  const addBtn    = document.getElementById('slideAddBtn');
+  if (!container) return;
+
+  if (coverSlides.length === 0) {
+    container.innerHTML = '';
+    dots.innerHTML = '';
+    hint.style.display = 'flex';
+    addBtn.style.display = 'none';
+    document.getElementById('lpDisc').classList.remove('playing');
+    return;
+  }
+
+  hint.style.display = 'none';
+  addBtn.style.display = 'flex';
+  document.getElementById('lpDisc').classList.add('playing');
+
+  container.innerHTML = coverSlides.map((s, i) =>
+    `<img class="slide-img${i === slideIndex ? ' active' : ''}" src="${s.url}" alt="">`
+  ).join('');
+
+  dots.innerHTML = coverSlides.map((_, i) =>
+    `<div class="slide-dot${i === slideIndex ? ' active' : ''}" onclick="goSlide(${i})"></div>`
+  ).join('');
+
+  // 미리보기 카드도 현재 슬라이드로 동기화
+  albumData.coverUrl = coverSlides[slideIndex].url;
+  updateNowPlayingCover();
+  updatePreviewCard();
+
+  clearInterval(slideTimer);
+  if (coverSlides.length > 1) {
+    slideTimer = setInterval(() => goSlide((slideIndex + 1) % coverSlides.length), 4000);
+  }
+}
+
+function goSlide(i) {
+  slideIndex = i;
+  document.querySelectorAll('.slide-img').forEach((el, idx) => el.classList.toggle('active', idx === i));
+  document.querySelectorAll('.slide-dot').forEach((el, idx) => el.classList.toggle('active', idx === i));
+  albumData.coverUrl = coverSlides[i].url;
+  updateNowPlayingCover();
+  updatePreviewCard();
+  clearInterval(slideTimer);
+  if (coverSlides.length > 1) {
+    slideTimer = setInterval(() => goSlide((slideIndex + 1) % coverSlides.length), 4000);
+  }
+}
+
+// coverUpload 이벤트를 슬라이드 방식으로 교체
+document.getElementById('coverUpload').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop();
+  const filePath = `covers/${albumId}/${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from('album-covers').upload(filePath, file, { upsert: true });
+  if (error) { alert('업로드 실패: ' + error.message); return; }
+  const { data } = sb.storage.from('album-covers').getPublicUrl(filePath);
+  coverSlides.push({ url: data.publicUrl });
+  slideIndex = coverSlides.length - 1;
+  renderSlides();
+  await saveSlidesToDB();
+  this.value = '';
+});
+
+async function saveSlidesToDB() {
+  if (!albumId) return;
+  await sb.from('albums').update({ cover_slides: JSON.stringify(coverSlides) }).eq('id', albumId);
+}
+
+// ════════════════════════════════════════════════════════
+// 공개 링크 토글
+// ════════════════════════════════════════════════════════
+async function togglePublic(checked) {
+  await sb.from('albums').update({ is_public: checked }).eq('id', albumId);
+  document.getElementById('publicToggleLabel').textContent = checked ? '공개' : '비공개';
+  document.getElementById('publicToggleLabel').style.color = checked ? 'var(--accent)' : 'var(--text-dim)';
+  const sec = document.getElementById('publicLinkSection');
+  if (checked) {
+    sec.style.display = '';
+    const url = `${location.origin}${location.pathname}?album=${albumId}&view=public`;
+    document.getElementById('publicLinkUrl').textContent = url;
+  } else {
+    sec.style.display = 'none';
+  }
+}
+
+function copyPublicLink() {
+  const url = document.getElementById('publicLinkUrl').textContent;
+  navigator.clipboard.writeText(url)
+    .then(() => alert('공개 링크가 복사되었습니다!'))
+    .catch(() => prompt('아래 링크를 복사하세요:', url));
+}
+
+// 공개 뷰 모드 초기화 (?view=public → 편집 UI 숨김)
+function initPublicView() {
+  const isPublic = new URLSearchParams(location.search).get('view') === 'public';
+  if (!isPublic) return;
+  // 편집 불가 UI 숨김
+  document.getElementById('topBar').style.display = 'none';
+  const hideIds = ['coverUpload','resetCoverBtn','albumTitle','albumArtist','albumYear','albumDesc','shareBar'];
+  hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; });
+  document.querySelectorAll('.add-track-form, .album-toolbar, .theme-bar, .editable-title-wrap .edit-pencil, .track-actions, .memo-input-row, .guestbook-form, .banner-add-form').forEach(el => el.style.display='none');
+  document.querySelector('.editable-title-wrap').style.cursor = 'default';
+  document.querySelector('.editable-title-wrap').onclick = null;
+}
+
+// ════════════════════════════════════════════════════════
+// 방명록
+// ════════════════════════════════════════════════════════
+let guestbookEntries = [];
+
+async function loadGuestbook() {
+  const { data } = await sb.from('guestbook')
+    .select('*').eq('album_id', albumId)
+    .order('created_at', { ascending: false });
+  guestbookEntries = data || [];
+  renderGuestbook();
+}
+
+function renderGuestbook() {
+  const list = document.getElementById('guestbookList');
+  if (!list) return;
+  if (guestbookEntries.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0;">아직 방명록이 없어요. 첫 번째 메시지를 남겨보세요!</div>';
+    return;
+  }
+  list.innerHTML = guestbookEntries.map(g => `
+    <div class="guestbook-item">
+      <div class="guestbook-nick">${escHtml(g.nickname)}</div>
+      <div class="guestbook-msg">${escHtml(g.message)}</div>
+      <div class="guestbook-meta">
+        <span>${new Date(g.created_at).toLocaleDateString('ko-KR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+        ${(currentUser && (g.user_id === currentUser.id || currentAlbumIsOwner))
+          ? `<button onclick="deleteGuestbook('${g.id}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;">삭제</button>`
+          : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addGuestbook() {
+  const nick = document.getElementById('gbNick').value.trim();
+  const msg  = document.getElementById('gbMsg').value.trim();
+  if (!nick || !msg) { alert('닉네임과 메시지를 입력해주세요.'); return; }
+  if (!currentUser) { alert('로그인이 필요합니다.'); return; }
+  const { error } = await sb.from('guestbook').insert({ album_id: albumId, user_id: currentUser.id, nickname: nick, message: msg });
+  if (error) { alert('오류: ' + error.message); return; }
+  document.getElementById('gbNick').value = '';
+  document.getElementById('gbMsg').value  = '';
+  await loadGuestbook();
+}
+
+async function deleteGuestbook(id) {
+  if (!confirm('방명록을 삭제할까요?')) return;
+  await sb.from('guestbook').delete().eq('id', id);
+  await loadGuestbook();
+}
+
+// ════════════════════════════════════════════════════════
+// 배너
+// ════════════════════════════════════════════════════════
+let banners = [];
+
+async function loadBanners() {
+  const { data } = await sb.from('banners')
+    .select('*').eq('album_id', albumId)
+    .order('position', { ascending: true });
+  banners = data || [];
+  renderBanners();
+}
+
+function renderBanners() {
+  const grid = document.getElementById('bannerGrid');
+  if (!grid) return;
+  if (banners.length === 0) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--text-dim);grid-column:1/-1;padding:4px 0;">아직 배너가 없어요. 추천하고 싶은 앨범이나 링크를 추가해보세요.</div>';
+    return;
+  }
+  grid.innerHTML = banners.map(b => `
+    <a class="banner-card" href="${escHtml(b.url)}" target="_blank" rel="noopener">
+      <div class="banner-card-title">${escHtml(b.title)}</div>
+      ${b.description ? `<div class="banner-card-desc">${escHtml(b.description)}</div>` : ''}
+      <button class="banner-card-del" onclick="event.preventDefault();deleteBanner('${b.id}')">✕</button>
+    </a>
+  `).join('');
+}
+
+async function addBanner() {
+  const title = document.getElementById('bannerTitle').value.trim();
+  const url   = document.getElementById('bannerUrl').value.trim();
+  const desc  = document.getElementById('bannerDesc').value.trim();
+  if (!title || !url) { alert('제목과 링크는 필수입니다.'); return; }
+  if (!url.startsWith('http')) { alert('http:// 또는 https://로 시작하는 링크를 입력해주세요.'); return; }
+  const { error } = await sb.from('banners').insert({ album_id: albumId, title, url, description: desc, position: banners.length });
+  if (error) { alert('오류: ' + error.message); return; }
+  document.getElementById('bannerTitle').value = '';
+  document.getElementById('bannerUrl').value   = '';
+  document.getElementById('bannerDesc').value  = '';
+  await loadBanners();
+}
+
+async function deleteBanner(id) {
+  if (!confirm('배너를 삭제할까요?')) return;
+  await sb.from('banners').delete().eq('id', id);
+  await loadBanners();
+}
+
 </script>
 <script src="https://www.youtube.com/iframe_api"></script>
 </body>
