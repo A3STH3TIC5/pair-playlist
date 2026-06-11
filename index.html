@@ -502,7 +502,7 @@ footer span { color: var(--accent-dim); }
       <div class="lp-stage">
         <div class="lp-disc" id="lpDisc">
           <div class="album-cover" id="albumCover">
-            <input type="file" accept="image/*" id="coverUpload" style="display:none">
+            <input type="file" accept="image/*" id="coverUpload" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none">
             <div class="upload-hint" id="uploadHint" onclick="document.getElementById('coverUpload').click()" style="cursor:pointer">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12l4-4 4 4"/></svg>
               <span>일러스트 업로드</span>
