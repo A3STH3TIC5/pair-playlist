@@ -1713,10 +1713,13 @@ function playTrackFromPlayer(index){
 
   // YT.Player가 아직 없으면 생성, 있으면 loadVideoById로 영상만 교체
   if(!ytPlayer){
-    ytPlayer = new YT.Player('youtubePlayer', {
-      videoId: track.ytId,
-      playerVars: { autoplay: 1 },
-      events: { onStateChange: onPlayerStateChange }
+    // YT API가 준비된 후 실행 (공개 링크 등 즉시 진입 시 타이밍 보장)
+    whenYtReady(() => {
+      ytPlayer = new YT.Player('youtubePlayer', {
+        videoId: track.ytId,
+        playerVars: { autoplay: 1 },
+        events: { onStateChange: onPlayerStateChange }
+      });
     });
   } else {
     ytPlayer.loadVideoById(track.ytId);
@@ -2160,6 +2163,21 @@ async function deleteBanner(id) {
   await loadBanners();
 }
 
+
+// YT API 준비 여부 플래그
+let ytApiReady = false;
+let ytApiReadyCallbacks = [];
+
+function onYouTubeIframeAPIReady() {
+  ytApiReady = true;
+  ytApiReadyCallbacks.forEach(fn => fn());
+  ytApiReadyCallbacks = [];
+}
+
+// YT API 준비될 때까지 대기 후 콜백 실행
+function whenYtReady(fn) {
+  if (ytApiReady) { fn(); } else { ytApiReadyCallbacks.push(fn); }
+}
 </script>
 <script src="https://www.youtube.com/iframe_api"></script>
 </body>
