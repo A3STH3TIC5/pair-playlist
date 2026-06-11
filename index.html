@@ -306,9 +306,12 @@ footer span { color: var(--accent-dim); }
 .slide-stage { position:relative; width:100%; aspect-ratio:1; }
 .slide-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; opacity:0; transition:opacity 0.6s; }
 .slide-img.active { opacity:1; }
-.slide-dots { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); display:flex; gap:5px; }
+.slide-dots { position:absolute; bottom:-26px; left:50%; transform:translateX(-50%); display:flex; gap:6px; align-items:center; }
+.slide-dot-wrap { display:flex; flex-direction:column; align-items:center; gap:3px; }
 .slide-dot { width:6px; height:6px; border-radius:50%; background:var(--glass-border); cursor:pointer; transition:background 0.2s; }
 .slide-dot.active { background:var(--accent); }
+.slide-dot-del { width:14px; height:14px; border-radius:50%; background:var(--accent2); border:none; cursor:pointer; font-size:9px; color:#1a0a0a; display:none; align-items:center; justify-content:center; line-height:1; padding:0; }
+.slide-dot-wrap:hover .slide-dot-del { display:flex; }
 .slide-add-btn { position:absolute; bottom:6px; right:6px; background:var(--accent); border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#1a1428; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,0.4); z-index:5; }
 
 /* ── 방명록 ── */
@@ -824,7 +827,7 @@ if (album) {
       document.getElementById('publicToggleLabel').style.color = isPublic ? 'var(--accent)' : 'var(--text-dim)';
       if (isPublic) {
         document.getElementById('publicLinkSection').style.display = '';
-        document.getElementById('publicLinkUrl').textContent = `${location.origin}${location.pathname}?album=${albumId}&view=public`;
+        document.getElementById('publicLinkUrl').textContent = `${location.origin}${location.pathname}?album=${albumId}&view=player&public=1`;
       }
     }
 
@@ -846,6 +849,11 @@ if (album) {
 
   // 공개 뷰 모드 처리
   initPublicView();
+
+  // public=1 링크로 접속 시 플레이어 모드 자동 진입
+  if (new URLSearchParams(location.search).get('public') === '1') {
+    openPlayerMode();
+  }
 }
 
 function copyShareUrl() {
@@ -858,10 +866,21 @@ function copyShareUrl() {
 }
 function openPlayerMode() {
   isPlayerMode = true;
-  history.pushState({}, '', `${location.pathname}?album=${albumId}&view=player`);
+  const isPublic = new URLSearchParams(location.search).get('public') === '1';
+  const newUrl = isPublic
+    ? `${location.pathname}?album=${albumId}&view=player&public=1`
+    : `${location.pathname}?album=${albumId}&view=player`;
+  history.pushState({}, '', newUrl);
   document.querySelectorAll('section').forEach(el => el.style.display = 'none');
   document.getElementById('playerModeView').style.display = 'block';
-  document.getElementById('closePlayerBtn').style.display = 'inline-flex';
+  // public=1이면 닫기 버튼 숨김 (나갈 수 없게)
+  const closeBtn = document.getElementById('closePlayerBtn');
+  if (isPublic) {
+    closeBtn.style.display = 'none';
+    document.getElementById('topBar').style.display = 'none';
+  } else {
+    closeBtn.style.display = 'inline-flex';
+  }
   if (!ytPlayer) {
     renderPlayerMode();
   }
@@ -1507,6 +1526,31 @@ function renderPlayerMode() {
 
       </div>
 
+      <!-- 플레이어 내 배너 -->
+      <div id="playerBannerWrap" style="display:none;margin-top:32px;">
+        <div style="font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent-dim);margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+          추천 앨범 &amp; 배너
+          <span style="flex:1;height:1px;background:var(--glass-border);display:block;"></span>
+        </div>
+        <div class="banner-grid" id="playerBannerGrid"></div>
+      </div>
+
+      <!-- 플레이어 내 방명록 -->
+      <div style="margin-top:40px;">
+        <div style="font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent-dim);margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+          방명록
+          <span style="flex:1;height:1px;background:var(--glass-border);display:block;"></span>
+        </div>
+        <div class="guestbook-list" id="playerGuestbookList"></div>
+        <div class="guestbook-form" id="playerGuestbookForm">
+          <input type="text" id="playerGbNick" placeholder="닉네임" maxlength="20">
+          <textarea id="playerGbMsg" placeholder="방명록을 남겨보세요…" style="height:70px"></textarea>
+          <div class="guestbook-submit-row" style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" onclick="addPlayerGuestbook()">남기기</button>
+          </div>
+        </div>
+      </div>
+
     </section>
 
   `;
@@ -1514,6 +1558,26 @@ function renderPlayerMode() {
   if(tracks.length){
     playTrackFromPlayer(currentTrackIndex);
   }
+
+  // 플레이어 내 배너 + 방명록 렌더링
+  renderPlayerBanners();
+  renderPlayerGuestbook();
+}
+
+function renderPlayerBanners() {
+  const wrap = document.getElementById('playerBannerWrap');
+  if (!wrap) return;
+  if (!banners || banners.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+  document.getElementById('playerBannerGrid').innerHTML = banners.map(b => `
+    <a class="banner-card" href="${escHtml(b.url)}" target="_blank" rel="noopener">
+      <div class="banner-card-title">${escHtml(b.title)}</div>
+      ${b.description ? `<div class="banner-card-desc">${escHtml(b.description)}</div>` : ''}
+    </a>
+  `).join('');
 }
 function onPlayerStateChange(event){
 
@@ -1720,9 +1784,12 @@ function renderSlides() {
     `<img class="slide-img${i === slideIndex ? ' active' : ''}" src="${s.url}" alt="">`
   ).join('');
 
-  dots.innerHTML = coverSlides.map((_, i) =>
-    `<div class="slide-dot${i === slideIndex ? ' active' : ''}" onclick="goSlide(${i})"></div>`
-  ).join('');
+  dots.innerHTML = coverSlides.map((_, i) => `
+    <div class="slide-dot-wrap">
+      <div class="slide-dot${i === slideIndex ? ' active' : ''}" onclick="goSlide(${i})"></div>
+      <button class="slide-dot-del" onclick="deleteSlide(${i})" title="이 이미지 삭제">✕</button>
+    </div>
+  `).join('');
 
   // 미리보기 카드도 현재 슬라이드로 동기화
   albumData.coverUrl = coverSlides[slideIndex].url;
@@ -1748,6 +1815,20 @@ function goSlide(i) {
   }
 }
 
+async function deleteSlide(i) {
+  if (!confirm('이 이미지를 삭제할까요?')) return;
+  coverSlides.splice(i, 1);
+  // 삭제 후 인덱스 보정
+  if (slideIndex >= coverSlides.length) slideIndex = Math.max(0, coverSlides.length - 1);
+  renderSlides();
+  await saveSlidesToDB();
+  // 슬라이드가 0개면 cover_url도 비움
+  if (coverSlides.length === 0) {
+    albumData.coverUrl = '';
+    await sb.from('albums').update({ cover_url: '', cover_slides: '[]' }).eq('id', albumId);
+  }
+}
+
 // coverUpload 이벤트를 슬라이드 방식으로 교체
 document.getElementById('coverUpload').addEventListener('change', async function(e) {
   const file = e.target.files[0];
@@ -1769,6 +1850,41 @@ async function saveSlidesToDB() {
   await sb.from('albums').update({ cover_slides: JSON.stringify(coverSlides) }).eq('id', albumId);
 }
 
+function renderPlayerGuestbook() {
+  const list = document.getElementById('playerGuestbookList');
+  if (!list) return;
+  if (!guestbookEntries || guestbookEntries.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0 16px;">아직 방명록이 없어요. 첫 번째 메시지를 남겨보세요!</div>';
+    return;
+  }
+  list.innerHTML = guestbookEntries.map(g => `
+    <div class="guestbook-item">
+      <div class="guestbook-nick">${escHtml(g.nickname)}</div>
+      <div class="guestbook-msg">${escHtml(g.message)}</div>
+      <div class="guestbook-meta">
+        <span>${new Date(g.created_at).toLocaleDateString('ko-KR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+        ${(currentUser && (g.user_id === currentUser.id || currentAlbumIsOwner))
+          ? `<button onclick="deleteGuestbook('${g.id}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;">삭제</button>`
+          : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addPlayerGuestbook() {
+  const nick = document.getElementById('playerGbNick').value.trim();
+  const msg  = document.getElementById('playerGbMsg').value.trim();
+  if (!nick || !msg) { alert('닉네임과 메시지를 입력해주세요.'); return; }
+  if (!currentUser) { alert('로그인이 필요합니다.'); return; }
+  const { error } = await sb.from('guestbook').insert({ album_id: albumId, user_id: currentUser.id, nickname: nick, message: msg });
+  if (error) { alert('오류: ' + error.message); return; }
+  document.getElementById('playerGbNick').value = '';
+  document.getElementById('playerGbMsg').value  = '';
+  await loadGuestbook();          // 공통 배열 갱신
+  renderPlayerGuestbook();        // 플레이어 내 목록 갱신
+  renderGuestbook();              // 메인 방명록도 동기화
+}
+
 // ════════════════════════════════════════════════════════
 // 공개 링크 토글
 // ════════════════════════════════════════════════════════
@@ -1779,7 +1895,7 @@ async function togglePublic(checked) {
   const sec = document.getElementById('publicLinkSection');
   if (checked) {
     sec.style.display = '';
-    const url = `${location.origin}${location.pathname}?album=${albumId}&view=public`;
+    const url = `${location.origin}${location.pathname}?album=${albumId}&view=player&public=1`;
     document.getElementById('publicLinkUrl').textContent = url;
   } else {
     sec.style.display = 'none';
@@ -1795,15 +1911,18 @@ function copyPublicLink() {
 
 // 공개 뷰 모드 초기화 (?view=public → 편집 UI 숨김)
 function initPublicView() {
-  const isPublic = new URLSearchParams(location.search).get('view') === 'public';
+  const params = new URLSearchParams(location.search);
+  const isPublic = params.get('public') === '1';
   if (!isPublic) return;
-  // 편집 불가 UI 숨김
+
+  // 편집 UI 전체 숨김
   document.getElementById('topBar').style.display = 'none';
   const hideIds = ['coverUpload','resetCoverBtn','albumTitle','albumArtist','albumYear','albumDesc','shareBar'];
   hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; });
-  document.querySelectorAll('.add-track-form, .album-toolbar, .theme-bar, .editable-title-wrap .edit-pencil, .track-actions, .memo-input-row, .guestbook-form, .banner-add-form').forEach(el => el.style.display='none');
-  document.querySelector('.editable-title-wrap').style.cursor = 'default';
-  document.querySelector('.editable-title-wrap').onclick = null;
+  document.querySelectorAll('.add-track-form, .album-toolbar, .theme-bar, .track-actions, .memo-input-row, .guestbook-form .guestbook-submit-row, .banner-add-form').forEach(el => { if(el) el.style.display='none'; });
+
+  // 플레이어 모드로 자동 진입 (이미 openPlayerMode가 호출되므로 여기선 플래그만)
+  window._isPublicView = true;
 }
 
 // ════════════════════════════════════════════════════════
