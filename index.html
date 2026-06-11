@@ -1175,65 +1175,7 @@ function complementColor(hex) { let r=parseInt(hex.slice(1,3),16),g=parseInt(hex
 // ════════════════════════════════════════════════════════
 // 앨범 커버
 // ════════════════════════════════════════════════════════
-document.getElementById('coverUpload')
-.addEventListener('change', async function(e){
-
-  const file = e.target.files[0];
-
-  if(!file) return;
-
-  const ext =
-    file.name.split('.').pop();
-
-  const fileName =
-    `${Date.now()}.${ext}`;
-
-  const filePath =
-    `covers/${albumId}/${fileName}`;
-
-  const { error } =
-    await sb.storage
-      .from('album-covers')
-      .upload(filePath, file, {
-        upsert: true
-      });
-
-  if(error){
-    alert(error.message);
-    return;
-  }
-
-  const { data } =
-    sb.storage
-      .from('album-covers')
-      .getPublicUrl(filePath);
-
-  const publicUrl =
-    data.publicUrl;
-
-  albumData.coverUrl =
-    publicUrl;
-
-  document.getElementById('coverImg').src =
-    publicUrl;
-
-  document.getElementById('coverImg').style.display =
-    'block';
-
-  document.getElementById('uploadHint').style.display =
-    'none';
-
-  document.getElementById('lpDisc')
-    .classList.add('playing');
-
-  document.getElementById('resetCoverBtn')
-    .style.display = 'inline-flex';
-
-  updatePreviewCard();
-
-  await saveAlbumToDB();
-
-});
+// [구버전 coverUpload 이벤트 제거 — 슬라이드 방식으로 대체됨]
 function resetCover() {
   albumData.coverUrl = '';
   coverSlides = [];
