@@ -218,6 +218,28 @@ footer span { color: var(--accent-dim); }
   transition:.2s;
 }
 
+.memo-popup-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 200; align-items: center; justify-content: center; padding: 20px;
+}
+.memo-popup-overlay.open { display: flex; }
+.memo-popup-card {
+  background: var(--deep); border: 1px solid var(--glass-border); border-radius: 16px;
+  padding: 24px; max-width: 420px; width: 100%; max-height: 70vh; overflow-y: auto;
+}
+.memo-popup-title { font-family:'Noto Serif KR',serif; font-size:16px; color:var(--text-main); margin-bottom:4px; }
+.memo-popup-artist { font-size:12px; color:var(--accent); margin-bottom:16px; }
+.memo-popup-close {
+  display: flex; justify-content: flex-end; margin-top: 16px;
+}
+.player-track-memo-btn {
+  background: none; border: none; color: var(--accent-dim); cursor: pointer;
+  padding: 6px; display: flex; align-items: center; flex-shrink: 0;
+  transition: color 0.2s;
+}
+.player-track-memo-btn:hover { color: var(--accent); }
+.player-track-memo-btn.has-memo { color: var(--accent); }
+
 .player-track:hover{
   background:var(--glass);
 }
@@ -605,6 +627,19 @@ footer span { color: var(--accent-dim); }
   </section>
 
   <footer><span>♥</span> 우리의 페어를 위한 플레이리스트</footer>
+
+  <!-- 메모 팝업 -->
+  <div class="memo-popup-overlay" id="memoPopupOverlay" onclick="if(event.target===this)closeMemoPopup()">
+    <div class="memo-popup-card">
+      <div class="memo-popup-title" id="memoPopupTitle">—</div>
+      <div class="memo-popup-artist" id="memoPopupArtist"></div>
+      <div class="memo-label">💜 페어와 이 곡의 연결고리</div>
+      <div class="memo-list" id="memoPopupList"></div>
+      <div class="memo-popup-close">
+        <button class="btn btn-ghost" onclick="closeMemoPopup()">닫기</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 하단 재생바 -->
@@ -1468,23 +1503,35 @@ function renderPlayerMode() {
 
       <div
         class="player-track ${i===currentTrackIndex ? 'active' : ''}"
-        onclick="playTrackFromPlayer(${i})"
+        style="display:flex;align-items:center;"
       >
-        <span>
-          ${String(i+1).padStart(2,'0')}
-        </span>
+        <div style="display:flex;align-items:center;flex:1;cursor:pointer;" onclick="playTrackFromPlayer(${i})">
+          <span>
+            ${String(i+1).padStart(2,'0')}
+          </span>
 
-        <div style="flex:1">
-          <div>${t.title}</div>
+          <div style="flex:1">
+            <div>${t.title}</div>
 
-          <div style="
-            font-size:12px;
-            color:var(--text-dim);
-            margin-top:2px;
-          ">
-            ${t.artist || ''}
+            <div style="
+              font-size:12px;
+              color:var(--text-dim);
+              margin-top:2px;
+            ">
+              ${t.artist || ''}
+            </div>
           </div>
         </div>
+
+        <button
+          class="player-track-memo-btn ${t.memos && t.memos.length > 0 ? 'has-memo' : ''}"
+          onclick="event.stopPropagation(); openMemoPopup(${i})"
+          title="메모 보기"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="${t.memos && t.memos.length > 0 ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+          </svg>
+        </button>
 
       </div>
 
@@ -1881,6 +1928,31 @@ document.getElementById('coverUpload').addEventListener('change', async function
 async function saveSlidesToDB() {
   if (!albumId) return;
   await sb.from('albums').update({ cover_slides: JSON.stringify(coverSlides) }).eq('id', albumId);
+}
+
+function openMemoPopup(index) {
+  const t = tracks[index];
+  if (!t) return;
+  document.getElementById('memoPopupTitle').textContent  = t.title;
+  document.getElementById('memoPopupArtist').textContent = t.artist || '';
+
+  const listEl = document.getElementById('memoPopupList');
+  if (!t.memos || t.memos.length === 0) {
+    listEl.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0;">아직 메모가 없어요.</div>';
+  } else {
+    listEl.innerHTML = t.memos.map(m => `
+      <div class="memo-item">
+        ${escHtml(m.text)}
+        <div class="memo-meta">${m.time}</div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('memoPopupOverlay').classList.add('open');
+}
+
+function closeMemoPopup() {
+  document.getElementById('memoPopupOverlay').classList.remove('open');
 }
 
 function renderPlayerGuestbook() {
