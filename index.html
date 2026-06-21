@@ -772,8 +772,9 @@ async function loadPublicView(aid) {
     .select('*, memos(*)')
     .eq('album_id', aid)
     .order('position', { ascending: true });
-  tracks = (trackData || []).map(t => ({
+  tracks = (trackData || []).map((t, i) => ({
     id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id,
+    position: t.position ?? i,
     memos: (t.memos || []).map(m => ({ id: m.id, text: m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR', { month:'short', day:'numeric' }) }))
   }));
 
@@ -917,7 +918,7 @@ if (album) {
 
   // 트랙
   const { data: trackData } = await sb.from('tracks').select('*, memos(*)').eq('album_id', albumId).order('position', { ascending: true });
-  tracks = (trackData || []).map(t => ({ id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id, memos: (t.memos || []).map(m => ({ id: m.id, text: m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR', { month:'short', day:'numeric' }) })) }));
+  tracks = (trackData || []).map((t, i) => ({ id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id, position: t.position ?? i, memos: (t.memos || []).map(m => ({ id: m.id, text: m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR', { month:'short', day:'numeric' }) })) }));
 
   applyThemeVars(currentTheme);
   renderAll();
@@ -1330,7 +1331,11 @@ async function deleteMemo(memoId){
 }
 async function reloadTracks() {
   const { data } = await sb.from('tracks').select('*, memos(*)').eq('album_id', albumId).order('position', { ascending: true });
-  tracks = (data || []).map(t => ({ id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id, memos: (t.memos||[]).map(m => ({ id:m.id, text:m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}) })) }));
+  tracks = (data || []).map((t, i) => ({
+    id: t.id, title: t.title, artist: t.artist || '', ytId: t.yt_id,
+    position: t.position ?? i,
+    memos: (t.memos||[]).map(m => ({ id:m.id, text:m.text, time: new Date(m.created_at).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}) }))
+  }));
   renderTrackList();
 }
 
