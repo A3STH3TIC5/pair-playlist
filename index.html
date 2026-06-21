@@ -1344,14 +1344,22 @@ async function moveTrack(id, dir) {
   const swapIdx = idx + dir;
   if (swapIdx < 0 || swapIdx >= tracks.length) return;
 
-  // position 값 스왑
-  const posA = tracks[idx].position ?? idx;
-  const posB = tracks[swapIdx].position ?? swapIdx;
+  // position 값 스왑 (없으면 인덱스로 폴백 — 단, 동일값이면 강제 분리)
+  let posA = tracks[idx].position;
+  let posB = tracks[swapIdx].position;
+  if (posA == null) posA = idx;
+  if (posB == null) posB = swapIdx;
+  if (posA === posB) { posA = idx; posB = swapIdx; }
 
-  await Promise.all([
+  const [r1, r2] = await Promise.all([
     sb.from('tracks').update({ position: posB }).eq('id', tracks[idx].id),
     sb.from('tracks').update({ position: posA }).eq('id', tracks[swapIdx].id)
   ]);
+
+  if (r1.error || r2.error) {
+    alert('순서 변경 실패: ' + (r1.error?.message || r2.error?.message) + '\n\nSupabase tracks_update RLS 정책을 확인해주세요.');
+    return;
+  }
 
   await reloadTracks();
 }
