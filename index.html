@@ -84,7 +84,9 @@ header { padding-top: 80px; padding-bottom: 32px; text-align: center; border-bot
 header h1 { font-family: 'Playfair Display', serif; font-size: clamp(28px, 6vw, 52px); font-weight: 400; color: var(--cream); display: inline; line-height: 1.15; }
 header h1 em { font-style: italic; color: var(--accent); }
 #titleInput { font-family: 'Playfair Display', serif; font-size: clamp(28px, 6vw, 52px); font-weight: 400; color: var(--cream); background: transparent; border: none; border-bottom: 2px solid var(--accent); outline: none; text-align: center; width: 100%; max-width: 500px; display: none; padding: 4px 8px; }
-.subtitle { margin-top: 10px; font-size: 13px; color: var(--text-dim); font-family: 'Noto Serif KR', serif; font-weight: 300; }
+.subtitle { margin-top: 10px; font-size: 13px; color: var(--text-dim); font-family: 'Noto Serif KR', serif; font-weight: 300; cursor: pointer; transition: color 0.2s; }
+.subtitle:hover { color: var(--accent-dim); }
+#subtitleInput { margin-top: 10px; font-size: 13px; font-family: 'Noto Serif KR', serif; font-weight: 300; background: transparent; border: none; border-bottom: 1px solid var(--accent); outline: none; color: var(--text-main); text-align: center; width: 100%; max-width: 420px; padding: 2px 6px; display: none; }
 
 /* ── SHARE BAR ── */
 .share-bar { margin-top: 18px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
@@ -438,7 +440,10 @@ footer span { color: var(--accent-dim); }
       </span>
     </div>
     <input type="text" id="titleInput" value="Playlist" onblur="finishEditTitle()" onkeydown="if(event.key==='Enter')finishEditTitle()">
-    <p class="subtitle">페어의 순간을 음악으로 기록합니다</p>
+    <p class="subtitle" id="subtitleText" onclick="startEditSubtitle()" title="클릭해서 편집">페어의 순간을 음악으로 기록합니다</p>
+    <input type="text" id="subtitleInput" maxlength="60" placeholder="한 줄 소개를 입력하세요"
+      onblur="finishEditSubtitle()"
+      onkeydown="if(event.key==='Enter')finishEditSubtitle()">
 <div class="album-toolbar">
 
   <button
@@ -759,7 +764,8 @@ async function loadPublicView(aid) {
 
   // 앨범 데이터 세팅
   albumData = { title: album.title || '', artist: album.artist || '', year: album.year || '', desc: album.desc || '', coverUrl: album.cover_url || '' };
-  pageTitle = album.page_title || album.title || 'Playlist';
+  pageTitle    = album.page_title    || album.title || 'Playlist';
+  pageSubtitle = album.page_subtitle || '페어의 순간을 음악으로 기록합니다';
   try { currentTheme = album.theme ? JSON.parse(album.theme) : currentTheme; } catch(e) {}
   try {
     const raw = album.cover_slides;
@@ -788,6 +794,8 @@ async function loadPublicView(aid) {
   // 페이지 제목
   document.getElementById('titleEm').textContent = pageTitle;
   document.title = pageTitle;
+  const subEl = document.getElementById('subtitleText');
+  if (subEl) subEl.textContent = pageSubtitle;
 
   // 슬라이드 렌더
   slideIndex = 0;
@@ -912,7 +920,8 @@ if (album) {
     album.invite_code || '';
 
   albumData = { title: album.title || '', artist: album.artist || '', year: album.year || '', desc: album.desc || '', coverUrl: album.cover_url || '' };
-    pageTitle = album.page_title || 'Playlist';
+    pageTitle    = album.page_title    || 'Playlist';
+    pageSubtitle = album.page_subtitle || '페어의 순간을 음악으로 기록합니다';
     currentTheme = album.theme ? JSON.parse(album.theme) : currentTheme;
   }
 
@@ -1165,8 +1174,33 @@ async function saveAlbumToDB() {
   await sb.from('albums').update({
     title: albumData.title, artist: albumData.artist, year: albumData.year,
     desc: albumData.desc, cover_url: mainCover,
-    page_title: pageTitle, theme: JSON.stringify(currentTheme)
+    page_title: pageTitle, page_subtitle: pageSubtitle, theme: JSON.stringify(currentTheme)
   }).eq('id', albumId);
+}
+
+// ════════════════════════════════════════════════════════
+// 서브타이틀 편집
+// ════════════════════════════════════════════════════════
+let pageSubtitle = '페어의 순간을 음악으로 기록합니다';
+
+function startEditSubtitle() {
+  const txt = document.getElementById('subtitleText');
+  const inp = document.getElementById('subtitleInput');
+  txt.style.display = 'none';
+  inp.value = pageSubtitle;
+  inp.style.display = 'inline-block';
+  inp.focus(); inp.select();
+}
+
+function finishEditSubtitle() {
+  const txt = document.getElementById('subtitleText');
+  const inp = document.getElementById('subtitleInput');
+  const val = inp.value.trim() || '페어의 순간을 음악으로 기록합니다';
+  pageSubtitle = val;
+  txt.textContent = pageSubtitle;
+  inp.style.display = 'none';
+  txt.style.display = '';
+  saveAlbumToDB();
 }
 
 // ════════════════════════════════════════════════════════
@@ -1184,6 +1218,8 @@ function finishEditTitle() {
   document.getElementById('titleDisplay').style.display = 'inline-flex';
   document.getElementById('titleEm').textContent = pageTitle;
   document.title = pageTitle;
+  const subEl = document.getElementById('subtitleText');
+  if (subEl) subEl.textContent = pageSubtitle;
   saveAlbumToDB();
 }
 
@@ -1240,6 +1276,8 @@ function saveAlbumInfo() {
   pageTitle = albumData.title || pageTitle;
   document.getElementById('titleEm').textContent = pageTitle;
   document.title = pageTitle;
+  const subEl = document.getElementById('subtitleText');
+  if (subEl) subEl.textContent = pageSubtitle;
 
   queueSave();
   updatePreviewCard();
@@ -1470,6 +1508,8 @@ function renderAll() {
   if (albumData.title || albumData.artist) updatePreviewCard();
   document.getElementById('titleEm').textContent = pageTitle;
   document.title = pageTitle;
+  const subEl = document.getElementById('subtitleText');
+  if (subEl) subEl.textContent = pageSubtitle;
   // 커버는 renderSlides()가 처리
   if (coverSlides && coverSlides.length > 0) renderSlides();
   const savedAccent = currentTheme.accent;
@@ -1911,12 +1951,33 @@ async function deleteSlide(i) {
 }
 
 // coverUpload 이벤트를 슬라이드 방식으로 교체
+// 이미지 압축 — 최대 800px, JPEG 80% 품질로 변환 (Storage 절약)
+function compressImage(file, maxPx = 800, quality = 0.8) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const w = Math.round(img.width  * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(resolve, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 document.getElementById('coverUpload').addEventListener('change', async function(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const ext = file.name.split('.').pop();
-  const filePath = `covers/${albumId}/${Date.now()}.${ext}`;
-  const { error } = await sb.storage.from('album-covers').upload(filePath, file, { upsert: true });
+  const compressed = await compressImage(file, 800, 0.8);
+  const filePath = `covers/${albumId}/${Date.now()}.jpg`;
+  const { error } = await sb.storage.from('album-covers').upload(filePath, compressed, { upsert: true, contentType: 'image/jpeg' });
   if (error) { alert('업로드 실패: ' + error.message); return; }
   const { data } = sb.storage.from('album-covers').getPublicUrl(filePath);
   coverSlides.push({ url: data.publicUrl });
@@ -2151,9 +2212,9 @@ async function addBanner() {
   let imageUrl = null;
   const imgFile = document.getElementById('bannerImgInput').files[0];
   if (imgFile) {
-    const ext = imgFile.name.split('.').pop();
-    const filePath = `banners/${albumId}/${Date.now()}.${ext}`;
-    const { error: uploadErr } = await sb.storage.from('album-covers').upload(filePath, imgFile, { upsert: true });
+    const compressedBanner = await compressImage(imgFile, 800, 0.8);
+    const filePath = `banners/${albumId}/${Date.now()}.jpg`;
+    const { error: uploadErr } = await sb.storage.from('album-covers').upload(filePath, compressedBanner, { upsert: true, contentType: 'image/jpeg' });
     if (uploadErr) { alert('이미지 업로드 실패: ' + uploadErr.message); return; }
     const { data: urlData } = sb.storage.from('album-covers').getPublicUrl(filePath);
     imageUrl = urlData.publicUrl;
