@@ -1153,11 +1153,15 @@ function queueSave(){
 async function saveAlbumToDB() {
   if (!albumId) return;
   const mainCover = coverSlides.length > 0 ? coverSlides[0].url : (albumData.coverUrl || '');
-  await sb.from('albums').update({
+  const { error } = await sb.from('albums').update({
     title: albumData.title, artist: albumData.artist, year: albumData.year,
     desc: albumData.desc, cover_url: mainCover,
     page_title: pageTitle, page_subtitle: pageSubtitle, theme: JSON.stringify(currentTheme)
   }).eq('id', albumId);
+  if (error) {
+    console.error('saveAlbumToDB 실패:', error.message, error.details, error.hint);
+    alert('저장 실패: ' + error.message + (error.hint ? '\n힌트: ' + error.hint : ''));
+  }
 }
 
 // ════════════════════════════════════════════════════════
