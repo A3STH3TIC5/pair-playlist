@@ -481,7 +481,7 @@ footer span { color: var(--accent-dim); }
     <div class="share-bar" id="shareBar" style="display:none">
       <div class="share-url-wrap">
         <span class="share-url" id="shareUrl"></span>
-        <button class="copy-btn" onclick="copyShareUrl()">복사</button>
+        <button class="copy-btn" onclick="copyShareUrl()">공유 링크 복사</button>
       </div>
       <button
   id="codeInputBtn"
@@ -498,15 +498,10 @@ footer span { color: var(--accent-dim); }
 >
   🎟 내 코드
 </button>
-      <!-- 공개 토글 -->
-      <div class="public-toggle-wrap" id="publicToggleWrap" style="display:none">
-        <span>공개 링크</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="publicToggle" onchange="togglePublic(this.checked)">
-          <span class="toggle-slider"></span>
-        </label>
-        <span id="publicToggleLabel" style="color:var(--text-dim);">비공개</span>
-      </div>
+      <!-- 공개 토글 제거됨 — 항상 공개 링크 표시 -->
+      <input type="checkbox" id="publicToggle" style="display:none" checked>
+      <div id="publicToggleWrap" style="display:none"></div>
+      <span id="publicToggleLabel" style="display:none"></span>
     </div>
 
     <!-- 테마 -->
@@ -624,14 +619,8 @@ footer span { color: var(--accent-dim); }
   </section>
 
   <!-- 공개 링크 섹션 -->
-  <section id="publicLinkSection" style="display:none">
-    <div class="section-label">공개 공유 링크</div>
-    <div style="background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;padding:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <span id="publicLinkUrl" style="flex:1;font-size:12px;color:var(--text-dim);word-break:break-all;"></span>
-      <button class="btn btn-ghost" onclick="copyPublicLink()">복사</button>
-    </div>
-    <p style="margin-top:8px;font-size:11px;color:var(--text-dim);">이 링크로 접속하면 로그인 없이 트랙 목록과 플레이어를 볼 수 있어요.</p>
-  </section>
+  <!-- publicLinkSection 제거됨 — 상단 shareBar로 통합 -->
+  <span id="publicLinkUrl" style="display:none"></span>
 
   <footer><span>♥</span> 우리의 페어를 위한 플레이리스트</footer>
 
@@ -937,26 +926,19 @@ if (album) {
 
   // shareBar: 오너·파트너 모두 표시
   if (album) {
-    const shareUrl = `${location.origin}${location.pathname}?album=${albumId}`;
-    document.getElementById('shareUrl').textContent = shareUrl;
+    // 상단 공유 링크 = 공개 플레이어 링크
+    const publicLink = `${location.origin}${location.pathname}?album=${albumId}&view=player&public=1`;
+    document.getElementById('shareUrl').textContent = publicLink;
+    document.getElementById('publicLinkUrl').textContent = publicLink;
     document.getElementById('shareBar').style.display = 'flex';
     const myCodeBtn = document.getElementById('myCodeBtn');
     if (myCodeBtn) myCodeBtn.style.display = currentAlbumIsOwner ? '' : 'none';
     const codeInputBtn = document.getElementById('codeInputBtn');
     if (codeInputBtn) codeInputBtn.style.display = '';
 
-    // 공개 토글 (오너·파트너만)
-    const toggleWrap = document.getElementById('publicToggleWrap');
-    if (toggleWrap) {
-      toggleWrap.style.display = 'flex';
-      const isPublic = album.is_public || false;
-      document.getElementById('publicToggle').checked = isPublic;
-      document.getElementById('publicToggleLabel').textContent = isPublic ? '공개' : '비공개';
-      document.getElementById('publicToggleLabel').style.color = isPublic ? 'var(--accent)' : 'var(--text-dim)';
-      if (isPublic) {
-        document.getElementById('publicLinkSection').style.display = '';
-        document.getElementById('publicLinkUrl').textContent = `${location.origin}${location.pathname}?album=${albumId}&view=player&public=1`;
-      }
+    // is_public이 꺼져있으면 자동으로 켜줌 (항상 공개 링크 제공)
+    if (!album.is_public && currentAlbumIsOwner) {
+      await sb.from('albums').update({ is_public: true }).eq('id', albumId);
     }
 
     // 커버 슬라이드 복원
@@ -986,7 +968,7 @@ if (album) {
 }
 
 function copyShareUrl() {
-  const url = document.getElementById('shareUrl').textContent;
+  const url = document.getElementById('shareUrl').textContent || document.getElementById('publicLinkUrl').textContent;
   navigator.clipboard.writeText(url).then(() => {
     const btn = document.querySelector('.copy-btn');
     btn.textContent = '✓ 복사됨';
@@ -2055,24 +2037,14 @@ async function addPlayerGuestbook() {
 }
 
 // ════════════════════════════════════════════════════════
-// 공개 링크 토글
-// ════════════════════════════════════════════════════════
+// 공개 링크 토글 — 토글 UI 제거됨, 내부 함수는 호환성 유지
 async function togglePublic(checked) {
   await sb.from('albums').update({ is_public: checked }).eq('id', albumId);
-  document.getElementById('publicToggleLabel').textContent = checked ? '공개' : '비공개';
-  document.getElementById('publicToggleLabel').style.color = checked ? 'var(--accent)' : 'var(--text-dim)';
-  const sec = document.getElementById('publicLinkSection');
-  if (checked) {
-    sec.style.display = '';
-    const url = `${location.origin}${location.pathname}?album=${albumId}&view=player&public=1`;
-    document.getElementById('publicLinkUrl').textContent = url;
-  } else {
-    sec.style.display = 'none';
-  }
 }
 
 function copyPublicLink() {
   const url = document.getElementById('publicLinkUrl').textContent;
+  if (!url) return;
   navigator.clipboard.writeText(url)
     .then(() => alert('공개 링크가 복사되었습니다!'))
     .catch(() => prompt('아래 링크를 복사하세요:', url));
