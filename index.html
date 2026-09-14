@@ -1042,7 +1042,7 @@ async function createNewAlbum(){
     .single();
 
   if(error){
-    alert('커버 업로드 실패: ' + error.message + '\n\n파트너라면 Supabase Storage 정책에서 album-covers 버킷의 INSERT 권한을 확인해주세요.');
+    alert('커버 업로드 실패: ' + error.message);
     return;
   }
 
@@ -1938,6 +1938,7 @@ async function deleteSlide(i) {
 
 // coverUpload 이벤트를 슬라이드 방식으로 교체
 // 이미지 압축 — 최대 800px, JPEG 80% 품질로 변환 (Storage 절약)
+// Storage 미사용 — base64로 압축해서 DB에 직접 저장
 function compressImage(file, maxPx = 800, quality = 0.8) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -1945,12 +1946,13 @@ function compressImage(file, maxPx = 800, quality = 0.8) {
       const img = new Image();
       img.onload = () => {
         const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-        const w = Math.round(img.width  * scale);
+        const w = Math.round(img.width * scale);
         const h = Math.round(img.height * scale);
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        canvas.toBlob(resolve, 'image/jpeg', quality);
+        // base64 data URL로 반환 (Storage 불필요)
+        resolve(canvas.toDataURL('image/jpeg', quality));
       };
       img.src = e.target.result;
     };
@@ -1961,12 +1963,8 @@ function compressImage(file, maxPx = 800, quality = 0.8) {
 document.getElementById('coverUpload').addEventListener('change', async function(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const compressed = await compressImage(file, 800, 0.8);
-  const filePath = `covers/${albumId}/${Date.now()}.jpg`;
-  const { error } = await sb.storage.from('album-covers').upload(filePath, compressed, { upsert: true, contentType: 'image/jpeg' });
-  if (error) { alert('업로드 실패: ' + error.message); return; }
-  const { data } = sb.storage.from('album-covers').getPublicUrl(filePath);
-  coverSlides.push({ url: data.publicUrl });
+  const base64 = await compressImage(file, 800, 0.8);
+  coverSlides.push({ url: base64 });
   slideIndex = coverSlides.length - 1;
   renderSlides();
   await saveSlidesToDB();
@@ -2184,16 +2182,11 @@ async function addBanner() {
   if (!title || !url) { alert('제목과 링크는 필수입니다.'); return; }
   if (!url.startsWith('http')) { alert('http:// 또는 https://로 시작하는 링크를 입력해주세요.'); return; }
 
-  // 이미지 업로드 (선택)
+  // 이미지 — Storage 미사용, base64로 DB에 직접 저장
   let imageUrl = null;
   const imgFile = document.getElementById('bannerImgInput').files[0];
   if (imgFile) {
-    const compressedBanner = await compressImage(imgFile, 800, 0.8);
-    const filePath = `banners/${albumId}/${Date.now()}.jpg`;
-    const { error: uploadErr } = await sb.storage.from('album-covers').upload(filePath, compressedBanner, { upsert: true, contentType: 'image/jpeg' });
-    if (uploadErr) { alert('이미지 업로드 실패: ' + uploadErr.message); return; }
-    const { data: urlData } = sb.storage.from('album-covers').getPublicUrl(filePath);
-    imageUrl = urlData.publicUrl;
+    imageUrl = await compressImage(imgFile, 600, 0.8);
   }
 
   const { error } = await sb.from('banners').insert({
